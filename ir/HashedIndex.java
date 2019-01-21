@@ -38,7 +38,7 @@ public class HashedIndex implements Index {
             existenceIndex.put(token,exIdx);
         } else {
             PostingsList list = index.get(token);
-            if (existenceIndex.get(token).get(docID) != null)
+            if (existenceIndex.get(token).get(docID) == null)
                 list.add(new PostingsEntry(docID));
                 existenceIndex.get(token).put(docID,true);
         }
