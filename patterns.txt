@@ -12,38 +12,46 @@
 http(s)?:\/\/.*
 // http(s)?:\/\/(www\.)?([\w\%_-]+[\.\:])*\w+\/.*
 
-// Twenty-four seven
-\d+/\d+
-
-// ADD YOUR PATTERNS HERE
+// File names (but not web adresses)
+[\d\w\_]+?\.(doc|ppt|xlsx)
 
 // Email
 [\w\.\_\d]+\@(\w+\.)+\w{2,3}
 
-// File names (but not web adresses)
-[\d\w\_]+?\.(doc|ppt|xlsx)
-
 // IP addresses
 (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})
+
+// ADD YOUR PATTERNS HERE
 
 // How'd
 \w+\'\w+
 \'\w+$
 
 // America phone numbers
-\+?\d\-?\d{3}\-?\d{3}\-?\d{4}
+(\+?\d\-?)?\d{3}\-?\d{3}\-?\d{4}
+\+\d+
 
 // 6.15
-\d{1,2}\.\d{1,2}
+(\d+)(\.\d+)+
+
+// 18:15:34,
 \d{1,2}\:\d{1,2}(\:\d{1,2})?
+
+
+(\d{3}|\d{6})-\w{4}
+
+// 190,194,191
+(\d+)(\,\d+)+
 
 // p.m.
 \w\.\w\.
 
-(\d{3}|\d{6})-\w{4}
-
+// $100
 \$\d+
 
+// some-thing
 \w+\-\w+
 
-(\d+\,)+$
+
+// Twenty-four seven
+\d+\/\d+
