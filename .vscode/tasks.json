@@ -24,6 +24,18 @@
             },
             "group": {
                 "kind": "test",
+            },
+        },
+        {
+            "label": "Search engine",
+            "command": "",
+            "args": ["scripts\\run_search_engine.bat"
+            ],
+            "options" : {
+                "cwd": "${workspaceRoot}"
+            },
+            "group": {
+                "kind": "test",
                 "isDefault": true
             },
         }
