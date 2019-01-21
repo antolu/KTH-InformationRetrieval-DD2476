@@ -29,9 +29,10 @@ public class Searcher {
      *  @return A postings list representing the result of the query.
      */
     public PostingsList search( Query query, QueryType queryType, RankingType rankingType ) { 
-        //
-        //  REPLACE THE STATEMENT BELOW WITH YOUR CODE
-        //
-        return null;
+        String token = query.queryterm.get(0).term;
+
+        PostingsList list = index.getPostings(token);
+
+        return list;
     }
 }
