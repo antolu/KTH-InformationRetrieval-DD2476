@@ -45,7 +45,6 @@ public class Searcher {
             return list;
         }
 
-
     }
 
     private PostingsList getIntersectionQuery(Query query) {
@@ -67,7 +66,7 @@ public class Searcher {
             // If one term does not exist, whole intersection query fails
             if (tokenList != null)
                 postingsLists.add(tokenList);
-            else 
+            else
                 return new PostingsList();
         }
 
@@ -88,17 +87,20 @@ public class Searcher {
             PostingsEntry docID1 = (PostingsEntry) itp1.next();
             PostingsEntry docID2 = (PostingsEntry) itp2.next();
 
-            while (itp1.hasNext() && itp2.hasNext()) {
-                if (docID1.docID == docID2.docID) {
-                    intersection.add(docID1);
-                    docID1 = (PostingsEntry) itp1.next();
-                    docID2 = (PostingsEntry) itp2.next();
-                } else if (docID1.docID < docID2.docID) {
-                    docID1 = (PostingsEntry) itp1.next();
+            try {
+                for (;;) {
+                    if (docID1.docID == docID2.docID) {
+                        intersection.add(docID1);
+                        docID1 = (PostingsEntry) itp1.next();
+                        docID2 = (PostingsEntry) itp2.next();
+                    } else if (docID1.docID < docID2.docID) {
+                        docID1 = (PostingsEntry) itp1.next();
+                    } else {
+                        docID2 = (PostingsEntry) itp2.next();
+                    }
                 }
-                else {
-                    docID2 = (PostingsEntry) itp2.next();
-                }
+            } catch (Exception e) {
+                // Do nothing
             }
         }
         return intersection;
