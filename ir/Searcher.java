@@ -9,6 +9,7 @@ package ir;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Collections;
 
 /**
  * Searches an index for results of a query.
@@ -69,6 +70,8 @@ public class Searcher {
             else
                 return new PostingsList();
         }
+
+        Collections.sort(postingsLists);
 
         /** Iterate all queries */
         PostingsList p1;
