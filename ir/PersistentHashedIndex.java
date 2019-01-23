@@ -228,7 +228,6 @@ public class PersistentHashedIndex implements Index {
         return null;
     }
 
-
     /**
      *  Inserts this token in the main-memory hashtable.
      */

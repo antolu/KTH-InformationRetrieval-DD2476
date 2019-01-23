@@ -20,7 +20,6 @@ public class HashedIndex implements Index {
 
     /** The index as a hashtable. */
     private HashMap<String,PostingsList> index = new HashMap<String,PostingsList>();
-    private HashMap<String,HashMap<Integer,Boolean>> existenceIndex = new HashMap<String,HashMap<Integer,Boolean>>();
 
 
     /**
@@ -28,19 +27,20 @@ public class HashedIndex implements Index {
      */
     public void insert( String token, int docID, int offset ) {
         // A PostingsList does not exist
-        if (index.get(token) == null) {
+        if (!index.containsKey(token)) {
+            // Add to general purpose index
             PostingsList list = new PostingsList();
-            list.add(new PostingsEntry(docID));
+            list.add(new PostingsEntry(docID, offset));
             index.put(token, list);
 
-            HashMap<Integer,Boolean> exIdx = new HashMap<>();
-            exIdx.put(docID, true);
-            existenceIndex.put(token,exIdx);
         } else {
             PostingsList list = index.get(token);
-            if (existenceIndex.get(token).get(docID) == null)
-                list.add(new PostingsEntry(docID));
-                existenceIndex.get(token).put(docID,true);
+
+            /** Add to general index only if not does not exist already */
+            if (list.get(list.size()-1).docID != docID)
+                list.add(new PostingsEntry(docID, offset));
+            else 
+                list.get(list.size()-1).addPosition(offset);
         }
     }
 
