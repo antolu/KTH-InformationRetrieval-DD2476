@@ -37,6 +37,9 @@ public class Searcher {
      */
     public PostingsList search(Query query, QueryType queryType, RankingType rankingType) {
 
+        if (query.queryterm.size() == 0)
+            return null;
+
         // Not sufficient number of words for other query
         if (query.queryterm.size() < 2) {
             return index.getPostings(query.queryterm.get(0).term);
