@@ -10,6 +10,8 @@ package ir;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Set;
 
 /**
  * Searches an index for results of a query.
@@ -62,65 +64,76 @@ public class Searcher {
 
         // Collections.sort(postingsLists);
 
-        /** Iterate all queries */
+        HashMap<Integer, ArrayList<Triple>> posIntersect = new HashMap<>();
+
         PostingsList p1;
         PostingsList p2;
 
-        Iterator<PostingsEntry> itp1;
-        Iterator<PostingsEntry> itp2;
-
-        PostingsEntry docID1;
-        PostingsEntry docID2;
-
-        intersection = postingsLists.get(0);
-
+        /* Get all biwords */
         for (int i = 1; i < postingsLists.size(); i++) {
-            p1 = intersection;
+            p1 = postingsLists.get(i-1);
             p2 = postingsLists.get(i);
-            intersection = new PostingsList();
+            
+            ArrayList<Triple> answer = getPositionalIntersect(p1, p2);
 
-            itp1 = p1.iterator();
-            itp2 = p2.iterator();
-
-            docID1 = (PostingsEntry) itp1.next();
-            docID2 = (PostingsEntry) itp2.next();
-
-            try {
-                for (;;) {
-                    // Same documents
-                    if (docID1.docID == docID2.docID) {
-
-                        /* Get positional indexes */
-                        ArrayList<Integer> pList1 = docID1.getPositionList();
-                        ArrayList<Integer> pList2 = docID2.getPositionList();
-
-                        /* Compare indexes */
-                        indexloop:
-                        for (int pos1 = 0; pos1 < pList1.size(); pos1++) {
-                            for (int pos2 = 0; pos2 < pList2.size(); pos2++) {
-                                if (pList2.get(pos2) < pList1.get(pos1)) 
-                                    continue;
-
-                                if (pList2.get(pos2) == pList1.get(pos1) + 1) {
-                                    intersection.add(docID2);
-                                    break indexloop;
-                                }
-                            }
-                        }
-
-                        docID1 = (PostingsEntry) itp1.next();
-                        docID2 = (PostingsEntry) itp2.next();
-                    } else if (docID1.docID < docID2.docID) {
-                        docID1 = (PostingsEntry) itp1.next();
-                    } else {
-                        docID2 = (PostingsEntry) itp2.next();
-                    }
+            for (int j = 0; j < answer.size(); j++) {
+                Triple triple = answer.get(j);
+                if (!posIntersect.containsKey(triple.docID)) {
+                    ArrayList<Triple> temp = new ArrayList<>();
+                    posIntersect.put(triple.docID, temp);
                 }
-            } catch (Exception e) {
-                // Do nothing
+                posIntersect.get(triple.docID).add(triple);
             }
         }
-        return intersection;
+
+        /* Find all matching queries */
+        Set<Integer> intersectDocs = posIntersect.keySet();
+        PostingsList queryAnswers = new PostingsList();
+
+        for (int docID : intersectDocs) {
+
+            ArrayList<Triple> positions = posIntersect.get(docID);
+
+            if (query.queryterm.size() == 2 && positions.size() >= 1) {
+                queryAnswers.add(new PostingsEntry(docID, 0));
+                continue;
+            } else if (positions.size() < query.queryterm.size() - 1)
+                continue; // Not enough tuples for phrase query
+
+            // System.out.println(positions);
+
+            HashMap<Integer,Integer> mappedTuples = new HashMap<>();
+            ArrayList<Integer> keys = new ArrayList<>();
+
+            for (int i = 0; i < positions.size(); i++) {
+                mappedTuples.put(positions.get(i).p1, positions.get(i).p2);
+                keys.add(positions.get(i).p1);
+            }
+
+            int pos1 = 0;
+            int pos2 = 0;
+
+            loop:
+            for (int key : keys) {
+                pos1 = key;
+                pos2 = mappedTuples.get(pos1);
+                int counter = 0;
+
+                for (;;)
+                    if (mappedTuples.containsKey(pos2)) {
+                        pos1 = pos2;
+                        pos2 = mappedTuples.get(pos2);
+                        counter++;
+                    } else break;
+                // System.out.println(counter);
+                if (counter == query.queryterm.size()-2) {
+                    queryAnswers.add(new PostingsEntry(docID,0));
+                    break loop;
+                }
+            }
+        }
+
+        return queryAnswers;
     }
 
     private PostingsList getIntersectionQuery(Query query) {
@@ -164,6 +177,51 @@ public class Searcher {
             }
         }
         return intersection;
+    }
+
+    private ArrayList<Triple> getPositionalIntersect(PostingsList p1, PostingsList p2) {
+        Iterator<PostingsEntry> itp1 = p1.iterator();
+        Iterator<PostingsEntry> itp2 = p2.iterator();
+
+        PostingsEntry docID1 = (PostingsEntry) itp1.next();
+        PostingsEntry docID2 = (PostingsEntry) itp2.next();
+
+        ArrayList<Triple> answer = new ArrayList<>();
+
+        try {
+            for (;;) {
+                // Same documents
+                if (docID1.docID == docID2.docID) {
+
+                    /* Get positional indexes */
+                    ArrayList<Integer> pList1 = docID1.getPositionList();
+                    ArrayList<Integer> pList2 = docID2.getPositionList();
+
+                    /* Compare indexes */
+                    for (int pos1 = 0; pos1 < pList1.size(); pos1++) {
+                        for (int pos2 = 0; pos2 < pList2.size(); pos2++) {
+                            if (pList2.get(pos2) < pList1.get(pos1)) 
+                                continue;
+
+                            if (pList2.get(pos2) == pList1.get(pos1) + 1) {
+                                answer.add(new Triple(docID1.docID, pList1.get(pos1), pList2.get(pos2)));
+                            }
+                        }
+                    }
+
+                    docID1 = (PostingsEntry) itp1.next();
+                    docID2 = (PostingsEntry) itp2.next();
+                } else if (docID1.docID < docID2.docID) {
+                    docID1 = (PostingsEntry) itp1.next();
+                } else {
+                    docID2 = (PostingsEntry) itp2.next();
+                }
+            }
+        } catch (Exception e) {
+            // Do nothing
+        }
+
+        return answer;
     }
 
     /**
