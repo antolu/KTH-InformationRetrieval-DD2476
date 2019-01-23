@@ -77,24 +77,12 @@ public class Searcher {
         PostingsList p1;
         PostingsList p2;
 
-        ArrayList<Triple> answer;
-
         /* Get all biwords */
         for (int i = 1; i < postingsLists.size(); i++) {
             p1 = postingsLists.get(i - 1);
             p2 = postingsLists.get(i);
 
-            answer = getPositionalIntersect(p1, p2);
-
-            for (int j = 0; j < answer.size(); j++) {
-                Triple triple = answer.get(j);
-                if (!posIntersect.containsKey(triple.doc.docID)) {
-                    HashMap<Integer, Integer> temp = new HashMap<>();
-                    posIntersect.put(triple.doc.docID, temp);
-                    posKeys.add(triple.doc);
-                }
-                posIntersect.get(triple.doc.docID).put(triple.p1, triple.p2);
-            }
+            getPositionalIntersect(posIntersect, posKeys, p1, p2);
         }
 
         /* Find all matching queries */
@@ -181,14 +169,18 @@ public class Searcher {
         return intersection;
     }
 
-    private ArrayList<Triple> getPositionalIntersect(PostingsList p1, PostingsList p2) throws IllegalArgumentException {
+    private void getPositionalIntersect(HashMap<Integer, HashMap<Integer, Integer>> posIntersect, ArrayList<PostingsEntry> posKeys, PostingsList p1, PostingsList p2) throws IllegalArgumentException {
         Iterator<PostingsEntry> itp1 = p1.iterator();
         Iterator<PostingsEntry> itp2 = p2.iterator();
 
         PostingsEntry docID1 = (PostingsEntry) itp1.next();
         PostingsEntry docID2 = (PostingsEntry) itp2.next();
 
-        ArrayList<Triple> answer = new ArrayList<>();
+        ArrayList<Integer> pList1;
+        ArrayList<Integer> pList2;
+
+        Iterator<Integer> itps1;
+        Iterator<Integer> itps2;
 
         try {
             for (;;) {
@@ -196,14 +188,14 @@ public class Searcher {
                 if (docID1.docID == docID2.docID) {
 
                     /* Get positional indexes */
-                    ArrayList<Integer> pList1 = docID1.getPositionList();
-                    ArrayList<Integer> pList2 = docID2.getPositionList();
+                    pList1 = docID1.getPositionList();
+                    pList2 = docID2.getPositionList();
 
                     // Size discrepancy too large
                     if (!(pList2.get(pList2.size() - 1) < pList1.get(0)))
                     {
-                        Iterator<Integer> itps1 = pList1.iterator();
-                        Iterator<Integer> itps2 = pList2.iterator();
+                        itps1 = pList1.iterator();
+                        itps2 = pList2.iterator();
 
                         int ps1 = itps1.next();
                         int ps2 = itps2.next();
@@ -215,7 +207,13 @@ public class Searcher {
                                     ps2 = itps2.next();
                                 } 
                                 else if (ps2 == ps1 + 1) {
-                                    answer.add(new Triple(docID1, ps1, ps2));
+                                    if (!posIntersect.containsKey(docID1.docID)) {
+                                        HashMap<Integer, Integer> temp = new HashMap<>();
+                                        posIntersect.put(docID1.docID, temp);
+                                        posKeys.add(docID1);
+                                    }
+                                    posIntersect.get(docID1.docID).put(ps1, ps2);
+
                                     ps1 = itps1.next();
                                     ps2 = itps2.next();
                                 }
@@ -239,8 +237,6 @@ public class Searcher {
         } catch (Exception e) {
             // Do nothing
         }
-
-        return answer;
     }
 
     /**
