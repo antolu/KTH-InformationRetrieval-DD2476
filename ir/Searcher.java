@@ -9,6 +9,7 @@ package ir;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Set;
@@ -40,23 +41,27 @@ public class Searcher {
         if (query.queryterm.size() == 0)
             return null;
 
-        // Not sufficient number of words for other query
-        if (query.queryterm.size() < 2) {
-            return index.getPostings(query.queryterm.get(0).term);
-        }
+        try {
+            // Not sufficient number of words for other query
+            if (query.queryterm.size() < 2) {
+                return index.getPostings(query.queryterm.get(0).term);
+            }
 
-        if (queryType == QueryType.INTERSECTION_QUERY) {
-            return getIntersectionQuery(query);
-        }
-        else if (queryType == QueryType.PHRASE_QUERY) {
-            return getPhraseQuery(query);
-        } else {
+            if (queryType == QueryType.INTERSECTION_QUERY) {
+                return getIntersectionQuery(query);
+            } else if (queryType == QueryType.PHRASE_QUERY) {
+                return getPhraseQuery(query);
+            } else {
 
-            String token = query.queryterm.get(0).term;
+                String token = query.queryterm.get(0).term;
 
-            PostingsList list = index.getPostings(token);
+                PostingsList list = index.getPostings(token);
 
-            return list;
+                return list;
+            }
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            return null;
         }
 
     }
@@ -76,9 +81,9 @@ public class Searcher {
 
         /* Get all biwords */
         for (int i = 1; i < postingsLists.size(); i++) {
-            p1 = postingsLists.get(i-1);
+            p1 = postingsLists.get(i - 1);
             p2 = postingsLists.get(i);
-            
+
             answer = getPositionalIntersect(p1, p2);
 
             for (int j = 0; j < answer.size(); j++) {
@@ -97,7 +102,7 @@ public class Searcher {
 
         for (PostingsEntry doc : posKeys) {
 
-            HashMap<Integer,Integer> mappedTuples = posIntersect.get(doc.docID);
+            HashMap<Integer, Integer> mappedTuples = posIntersect.get(doc.docID);
 
             if (query.queryterm.size() == 2 && mappedTuples.size() >= 1) {
                 queryAnswers.add(doc);
@@ -107,21 +112,23 @@ public class Searcher {
 
             int pos1;
             int pos2;
+            int counter;
 
-            loop:
-            for (int key : mappedTuples.keySet()) {
+            loop: for (int key : mappedTuples.keySet()) {
                 pos1 = key;
                 pos2 = mappedTuples.get(pos1);
-                int counter = 0;
+                counter = 0;
 
-                for (;;)
+                for (;;) {
                     if (mappedTuples.containsKey(pos2)) {
                         pos1 = pos2;
                         pos2 = mappedTuples.get(pos2);
                         counter++;
-                    } else break;
-                // System.out.println(counter);
-                if (counter == query.queryterm.size()-2) {
+                    } else
+                        break;
+                }
+
+                if (counter == query.queryterm.size() - 2) {
                     queryAnswers.add(doc);
                     break loop; // Match found
                 }
@@ -131,7 +138,7 @@ public class Searcher {
         return queryAnswers;
     }
 
-    private PostingsList getIntersectionQuery(Query query) {
+    private PostingsList getIntersectionQuery(Query query) throws IllegalArgumentException {
 
         ArrayList<PostingsList> postingsLists = getPostingsLists(query);
         PostingsList intersection;
@@ -174,7 +181,7 @@ public class Searcher {
         return intersection;
     }
 
-    private ArrayList<Triple> getPositionalIntersect(PostingsList p1, PostingsList p2) {
+    private ArrayList<Triple> getPositionalIntersect(PostingsList p1, PostingsList p2) throws IllegalArgumentException {
         Iterator<PostingsEntry> itp1 = p1.iterator();
         Iterator<PostingsEntry> itp2 = p2.iterator();
 
@@ -192,15 +199,32 @@ public class Searcher {
                     ArrayList<Integer> pList1 = docID1.getPositionList();
                     ArrayList<Integer> pList2 = docID2.getPositionList();
 
-                    /* Compare indexes */
-                    for (int pos1 = 0; pos1 < pList1.size(); pos1++) {
-                        for (int pos2 = 0; pos2 < pList2.size(); pos2++) {
-                            if (pList2.get(pos2) < pList1.get(pos1)) 
-                                continue;
+                    // Size discrepancy too large
+                    if (!(pList2.get(pList2.size() - 1) < pList1.get(0)))
+                    {
+                        Iterator<Integer> itps1 = pList1.iterator();
+                        Iterator<Integer> itps2 = pList2.iterator();
 
-                            if (pList2.get(pos2) == pList1.get(pos1) + 1) {
-                                answer.add(new Triple(docID1, pList1.get(pos1), pList2.get(pos2)));
+                        int ps1 = itps1.next();
+                        int ps2 = itps2.next();
+
+                        /* Compare indexes */
+                        try {
+                            for (;;) {
+                                if (ps2 < ps1) {
+                                    ps2 = itps2.next();
+                                } 
+                                else if (ps2 == ps1 + 1) {
+                                    answer.add(new Triple(docID1, ps1, ps2));
+                                    ps1 = itps1.next();
+                                    ps2 = itps2.next();
+                                }
+                                else {
+                                    ps1 = itps1.next();
+                                }
                             }
+                        } catch (NoSuchElementException ex) {
+                            // Do nothinf
                         }
                     }
 
