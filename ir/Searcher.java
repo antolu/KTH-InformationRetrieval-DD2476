@@ -63,61 +63,53 @@ public class Searcher {
 
     private PostingsList getPhraseQuery(Query query) {
         ArrayList<PostingsList> postingsLists = getPostingsLists(query);
-        PostingsList intersection;
 
         // Collections.sort(postingsLists);
 
-        HashMap<Integer, ArrayList<Triple>> posIntersect = new HashMap<>();
+        HashMap<Integer, HashMap<Integer, Integer>> posIntersect = new HashMap<>();
+        ArrayList<PostingsEntry> posKeys = new ArrayList<>();
 
         PostingsList p1;
         PostingsList p2;
+
+        ArrayList<Triple> answer;
 
         /* Get all biwords */
         for (int i = 1; i < postingsLists.size(); i++) {
             p1 = postingsLists.get(i-1);
             p2 = postingsLists.get(i);
             
-            ArrayList<Triple> answer = getPositionalIntersect(p1, p2);
+            answer = getPositionalIntersect(p1, p2);
 
             for (int j = 0; j < answer.size(); j++) {
                 Triple triple = answer.get(j);
-                if (!posIntersect.containsKey(triple.docID)) {
-                    ArrayList<Triple> temp = new ArrayList<>();
-                    posIntersect.put(triple.docID, temp);
+                if (!posIntersect.containsKey(triple.doc.docID)) {
+                    HashMap<Integer, Integer> temp = new HashMap<>();
+                    posIntersect.put(triple.doc.docID, temp);
+                    posKeys.add(triple.doc);
                 }
-                posIntersect.get(triple.docID).add(triple);
+                posIntersect.get(triple.doc.docID).put(triple.p1, triple.p2);
             }
         }
 
         /* Find all matching queries */
-        Set<Integer> intersectDocs = posIntersect.keySet();
         PostingsList queryAnswers = new PostingsList();
 
-        for (int docID : intersectDocs) {
+        for (PostingsEntry doc : posKeys) {
 
-            ArrayList<Triple> positions = posIntersect.get(docID);
+            HashMap<Integer,Integer> mappedTuples = posIntersect.get(doc.docID);
 
-            if (query.queryterm.size() == 2 && positions.size() >= 1) {
-                queryAnswers.add(new PostingsEntry(docID, 0));
+            if (query.queryterm.size() == 2 && mappedTuples.size() >= 1) {
+                queryAnswers.add(doc);
                 continue;
-            } else if (positions.size() < query.queryterm.size() - 1)
+            } else if (mappedTuples.size() < query.queryterm.size() - 1)
                 continue; // Not enough tuples for phrase query
 
-            // System.out.println(positions);
-
-            HashMap<Integer,Integer> mappedTuples = new HashMap<>();
-            ArrayList<Integer> keys = new ArrayList<>();
-
-            for (int i = 0; i < positions.size(); i++) {
-                mappedTuples.put(positions.get(i).p1, positions.get(i).p2);
-                keys.add(positions.get(i).p1);
-            }
-
-            int pos1 = 0;
-            int pos2 = 0;
+            int pos1;
+            int pos2;
 
             loop:
-            for (int key : keys) {
+            for (int key : mappedTuples.keySet()) {
                 pos1 = key;
                 pos2 = mappedTuples.get(pos1);
                 int counter = 0;
@@ -130,8 +122,8 @@ public class Searcher {
                     } else break;
                 // System.out.println(counter);
                 if (counter == query.queryterm.size()-2) {
-                    queryAnswers.add(new PostingsEntry(docID,0));
-                    break loop;
+                    queryAnswers.add(doc);
+                    break loop; // Match found
                 }
             }
         }
@@ -207,7 +199,7 @@ public class Searcher {
                                 continue;
 
                             if (pList2.get(pos2) == pList1.get(pos1) + 1) {
-                                answer.add(new Triple(docID1.docID, pList1.get(pos1), pList2.get(pos2)));
+                                answer.add(new Triple(docID1, pList1.get(pos1), pList2.get(pos2)));
                             }
                         }
                     }
