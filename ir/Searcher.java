@@ -65,21 +65,35 @@ public class Searcher {
     }
 
     private PostingsList getPhraseQuery(Query query) {
-        ArrayList<PostingsList> postingsLists = getPostingsLists(query);
+        ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
 
         // Collections.sort(postingsLists);
         Collections.reverse(postingsLists);
 
-        PostingsList p1 = postingsLists.get(postingsLists.size()-1);
-        PostingsList p2 = postingsLists.get(postingsLists.size()-2);
+        PostingsList p1 = postingsLists.get(postingsLists.size() - 1).postingsList;
+        int idx1 = postingsLists.get(postingsLists.size() - 1).order;
 
-        postingsLists.remove(postingsLists.size()-1);
-        postingsLists.remove(postingsLists.size()-1);
+        postingsLists.remove(postingsLists.size() - 1);
 
-        return getRecursivePhrase(p1, p2, postingsLists);
+        return getRecursivePhrase(p1, postingsLists, idx1);
     }
 
-    private PostingsList getRecursivePhrase(PostingsList p1, PostingsList p2, ArrayList<PostingsList> postingsLists) {
+    /**
+     * A recursive implementation of phrase queries
+     * 
+     * @param p1            The intersection of queries from previous level
+     * @param p2            The new list of documents to intersect with the first
+     *                      one
+     * @param postingsLists The remaining tokens to intersect with
+     * @return A PostingsList with matching queries
+     */
+    private PostingsList getRecursivePhrase(PostingsList p1, ArrayList<PhraseToken> postingsLists, int idx1) {
+
+        /** Increment */
+        PostingsList p2 = postingsLists.get(postingsLists.size() - 1).postingsList;
+        int idx2 = postingsLists.get(postingsLists.size() - 1).order;
+
+        postingsLists.remove(postingsLists.size() - 1);
 
         Iterator<PostingsEntry> itp1 = p1.iterator();
         Iterator<PostingsEntry> itp2 = p2.iterator();
@@ -104,37 +118,31 @@ public class Searcher {
                     pList1 = docID1.getPositionList();
                     pList2 = docID2.getPositionList();
 
-                    // Size discrepancy too large
-                    if (!(pList2.get(pList2.size() - 1) < pList1.get(0)))
-                    {
-                        itps1 = pList1.iterator();
-                        itps2 = pList2.iterator();
+                    itps1 = pList1.iterator();
+                    itps2 = pList2.iterator();
 
-                        int ps1 = itps1.next();
-                        int ps2 = itps2.next();
+                    int ps1 = itps1.next();
+                    int ps2 = itps2.next();
 
-                        /* Compare indexes */
-                        try {
-                            for (;;) {
-                                if (ps2 < ps1) {
-                                    ps2 = itps2.next();
-                                } 
-                                else if (ps2 == ps1 + 1) {
-                                    intersection.add(new PostingsEntry(docID1.docID, ps2));
+                    /* Compare indexes */
+                    try {
+                        for (;;) {
+                            if (ps2 < ps1) {
+                                ps2 = itps2.next();
+                            } else if (ps2 == ps1 + 1) {
+                                intersection.add(new PostingsEntry(docID1.docID, ps2));
 
-                                    ps1 = itps1.next();
-                                    ps2 = itps2.next();
+                                ps1 = itps1.next();
+                                ps2 = itps2.next();
 
-                                    if (postingsLists.isEmpty())
-                                        break;
-                                }
-                                else {
-                                    ps1 = itps1.next();
-                                }
+                                if (postingsLists.isEmpty())
+                                    break;
+                            } else {
+                                ps1 = itps1.next();
                             }
-                        } catch (NoSuchElementException ex) {
-                            // Do nothing
                         }
+                    } catch (NoSuchElementException ex) {
+                        // Do nothing
                     }
 
                     docID1 = (PostingsEntry) itp1.next();
@@ -157,16 +165,18 @@ public class Searcher {
         if (postingsLists.isEmpty())
             return intersection;
 
-        /** Increment postingsLists */
-        p2 = postingsLists.get(postingsLists.size()-1);
-        postingsLists.remove(postingsLists.size()-1);
-
-        return getRecursivePhrase(intersection, p2, postingsLists);
+        return getRecursivePhrase(intersection, postingsLists, idx2);
     }
 
+    /**
+     * Retrieves the intersection query for the given query
+     * @param query The query containing tokens
+     * @return A PostingsList with the matches
+     * @throws IllegalArgumentException When a token in the query does not exist in the index.
+     */
     private PostingsList getIntersectionQuery(Query query) throws IllegalArgumentException {
 
-        ArrayList<PostingsList> postingsLists = getPostingsLists(query);
+        ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
         PostingsList intersection;
 
         Collections.sort(postingsLists);
@@ -175,11 +185,11 @@ public class Searcher {
         PostingsList p1;
         PostingsList p2;
 
-        intersection = postingsLists.get(0);
+        intersection = postingsLists.get(0).postingsList;
 
         for (int i = 1; i < postingsLists.size(); i++) {
             p1 = intersection;
-            p2 = postingsLists.get(i);
+            p2 = postingsLists.get(i).postingsList;
             intersection = new PostingsList();
 
             Iterator<PostingsEntry> itp1 = p1.iterator();
@@ -214,18 +224,18 @@ public class Searcher {
      * 
      * @return An ArrayList of PostingsLists
      */
-    private ArrayList<PostingsList> getPostingsLists(Query query) throws IllegalArgumentException {
-        ArrayList<PostingsList> postingsLists = new ArrayList<>();
+    private ArrayList<PhraseToken> getPostingsLists(Query query) throws IllegalArgumentException {
+        ArrayList<PhraseToken> postingsLists = new ArrayList<>();
 
         // Retrive all postingsLists for query tokens
-        for (Query.QueryTerm q : query.queryterm) {
-            String token = q.term;
+        for (int i = 0; i < query.queryterm.size(); i++) {
+            String token = query.queryterm.get(i).term;
 
             PostingsList tokenList = index.getPostings(token);
 
             // If one term does not exist, whole intersection query fails
             if (tokenList != null)
-                postingsLists.add(tokenList);
+                postingsLists.add(new PhraseToken(token, i,tokenList));
             else
                 throw new IllegalArgumentException("Token " + token + " has no matches");
         }
