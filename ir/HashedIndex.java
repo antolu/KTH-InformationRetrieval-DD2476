@@ -39,7 +39,7 @@ public class HashedIndex implements Index {
             /** Add to general index only if not does not exist already */
             if (list.get(list.size()-1).docID != docID)
                 list.add(new PostingsEntry(docID, offset));
-            else 
+            else if (list.get(list.size()-1).docID == docID)
                 list.get(list.size()-1).addPosition(offset);
         }
     }
