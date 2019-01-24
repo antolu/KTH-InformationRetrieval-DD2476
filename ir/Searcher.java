@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Collections;
+import java.util.HashSet;
 
 /**
  * Searches an index for results of a query.
@@ -22,6 +23,8 @@ public class Searcher {
 
     /** The k-gram index to be searched by this Searcher */
     KGramIndex kgIndex;
+
+    private static HashSet<Integer> commonIndices = new HashSet<>();
 
     /** Constructor */
     public Searcher(Index index, KGramIndex kgIndex) {
@@ -210,10 +213,12 @@ public class Searcher {
      */
     private PostingsList getIntersectionQuery(Query query) throws IllegalArgumentException {
 
+        commonIndices.clear();
+
         ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
         PostingsList intersection;
 
-        Collections.sort(postingsLists);
+        Collections.sort(postingsLists, Collections.reverseOrder());
 
         /** Iterate all queries */
         PostingsList p1;
@@ -221,27 +226,30 @@ public class Searcher {
 
         intersection = postingsLists.get(0).postingsList;
 
+        int j;
+        int k;
+
         for (int i = 1; i < postingsLists.size(); i++) {
+            j = 0;
+            k = 0;
+
             p1 = intersection;
             p2 = postingsLists.get(i).postingsList;
             intersection = new PostingsList();
 
-            Iterator<PostingsEntry> itp1 = p1.iterator();
-            Iterator<PostingsEntry> itp2 = p2.iterator();
-
-            PostingsEntry docID1 = (PostingsEntry) itp1.next();
-            PostingsEntry docID2 = (PostingsEntry) itp2.next();
+            PostingsEntry docID1 = p1.get(j++);
+            PostingsEntry docID2 = p2.get(k++);
 
             try {
                 for (;;) {
                     if (docID1.docID == docID2.docID) {
                         intersection.add(docID1);
-                        docID1 = (PostingsEntry) itp1.next();
-                        docID2 = (PostingsEntry) itp2.next();
+                        docID1 = p1.get(j++);
+                        docID2 = p2.get(k++);
                     } else if (docID1.docID < docID2.docID) {
-                        docID1 = (PostingsEntry) itp1.next();
+                        docID1 = p1.get(j++);
                     } else {
-                        docID2 = (PostingsEntry) itp2.next();
+                        docID2 = p2.get(k++);
                     }
                 }
             } catch (Exception e) {
