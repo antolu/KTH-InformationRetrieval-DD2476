@@ -65,17 +65,52 @@ public class Searcher {
     }
 
     private PostingsList getPhraseQuery(Query query) {
-        ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
+        PostingsList postingsLists = getIntersectionQuery(query);
+
+        ArrayList<PostingsList> orderPostingsList = getOrderedPostingsLists(query, postingsLists);
 
         // Collections.sort(postingsLists);
-        Collections.reverse(postingsLists);
+        Collections.reverse(orderPostingsList);
 
-        PostingsList p1 = postingsLists.get(postingsLists.size() - 1).postingsList;
-        int idx1 = postingsLists.get(postingsLists.size() - 1).order;
+        System.out.println(orderPostingsList.size());
+        System.out.println(orderPostingsList.get(0).size());
 
-        postingsLists.remove(postingsLists.size() - 1);
 
-        return getRecursivePhrase(p1, postingsLists, idx1);
+        PostingsList p1 = orderPostingsList.get(orderPostingsList.size() - 1);
+
+        orderPostingsList.remove(orderPostingsList.size() - 1);
+
+        return getRecursivePhrase(p1, orderPostingsList);
+    }
+
+    private ArrayList<PostingsList> getOrderedPostingsLists(Query query, PostingsList postingsList) {
+
+        ArrayList<PostingsList> ret = new ArrayList<>();
+        for (int i = 0; i < query.queryterm.size(); i++) {
+            ret.add(new PostingsList());
+        }
+
+        for (int i = 0; i < query.queryterm.size(); i++) {
+            String token = query.queryterm.get(i).term;
+
+            int k = 0;
+
+            PostingsList tokenList = index.getPostings(token);
+            for (int j = 0; j < postingsList.size(); j++) {
+                PostingsEntry entry = postingsList.get(j);
+
+                
+
+                // Find its original entry
+                for (; k < tokenList.size(); k++) {
+                    if (tokenList.get(k).docID == entry.docID) {
+                        ret.get(i).add(tokenList.get(k));
+                        break;
+                    }
+                } 
+            }
+        }
+        return ret;
     }
 
     /**
@@ -87,11 +122,10 @@ public class Searcher {
      * @param postingsLists The remaining tokens to intersect with
      * @return A PostingsList with matching queries
      */
-    private PostingsList getRecursivePhrase(PostingsList p1, ArrayList<PhraseToken> postingsLists, int idx1) {
+    private PostingsList getRecursivePhrase(PostingsList p1, ArrayList<PostingsList> postingsLists) {
 
         /** Increment */
-        PostingsList p2 = postingsLists.get(postingsLists.size() - 1).postingsList;
-        int idx2 = postingsLists.get(postingsLists.size() - 1).order;
+        PostingsList p2 = postingsLists.get(postingsLists.size() - 1);
 
         postingsLists.remove(postingsLists.size() - 1);
 
@@ -165,7 +199,7 @@ public class Searcher {
         if (postingsLists.isEmpty())
             return intersection;
 
-        return getRecursivePhrase(intersection, postingsLists, idx2);
+        return getRecursivePhrase(intersection, postingsLists);
     }
 
     /**
