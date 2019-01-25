@@ -295,6 +295,10 @@ public class PersistentHashedIndex implements Index {
 
         Entry entry;
 
+        int origHash = hash;
+        
+        long start = System.currentTimeMillis();
+
         for (;;) {
             try {
                 entry = readEntry(hash++);
@@ -306,6 +310,13 @@ public class PersistentHashedIndex implements Index {
                 break;
             }
         }
+
+        long end = System.currentTimeMillis();
+
+        System.out.println("Number of hash collisions: " + (hash-origHash));
+        System.out.println("Time to get entry for token " + token + " " + (end-start) + " ms");
+
+        start = System.currentTimeMillis();
 
         try {
             dataFile.seek(entry.start);
@@ -328,6 +339,10 @@ public class PersistentHashedIndex implements Index {
                 }
                 pl.add(postingsEntry);
             }
+
+            end = System.currentTimeMillis();
+            System.out.println("Time to parse list for token " + token + " " + (end-start) + " ms");
+
             return pl;
         } catch (IOException e) {
             System.out.println(hash);
