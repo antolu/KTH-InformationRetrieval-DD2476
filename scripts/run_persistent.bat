@@ -1,1 +1,2 @@
-java -cp classes -Xmx1g ir.Engine -d /info/DD2476/ir19/lab/davisWiki -l ir19.gif -p patterns.txt -ni
+cd build
+java -cp . -Xmx1g ir.Engine -d ../davisWiki -l ../ir19.gif -p ../patterns.txt -ni
