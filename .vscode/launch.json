@@ -12,9 +12,19 @@
         },
         {
             "type": "java",
-            "name": "Debug (Launch)-TokenTest",
+            "name": "Debug (Launch)-Persistent",
             "request": "launch",
-            "mainClass": "ir.TokenTest"
+            "cwd" : "${workspaceRoot}\\build",
+            "mainClass": "ir.Engine",
+            "args" : [
+                "-d",
+                "../davisWiki",
+                "-l",
+                "../ir19.gif",
+                "-p",
+                "../patterns.txt",
+                "-ni"
+            ]
         }
     ]
 }
