@@ -34,7 +34,6 @@ public class PostingsList extends ArrayList<PostingsEntry> implements Comparable
 
         /** Remove overflowing semicolon */
         sb.setLength(sb.length() - 1);
-        sb.append("\n");
         
         return sb.toString();
     }
