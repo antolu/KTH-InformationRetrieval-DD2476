@@ -1,8 +1,10 @@
 package ir;
 
 import java.lang.Math;
+import java.nio.ByteBuffer;
 
-public class HashToken{
+public class Utils{
+
     public static int hash(String s) {
         return Math.abs(s.hashCode()) % (int) PersistentHashedIndex.TABLESIZE;
     }

@@ -13,6 +13,8 @@ import java.nio.charset.*;
 import java.lang.Long;
 import java.lang.Integer;
 import java.util.zip.DataFormatException;
+import java.util.Arrays;
+import java.nio.ByteBuffer;
 
 /*
  *   Implements an inverted index as a hashtable on disk.
@@ -45,11 +47,11 @@ public class PersistentHashedIndex implements Index {
     /** The dictionary hash table on disk can fit this many entries. */
     public static final long TABLESIZE = 611953L;
 
-    public static final int ENTRY_LENGTH = 32;
-
     /** Byte size of a long */
-    private static final long LONG_SIZE = 8;
-    private static final long INT_SIZE = 4;
+    private static final int ENTRY_SIZE = 16;
+
+    private static final ByteBuffer inBuffer = ByteBuffer.allocate(ENTRY_SIZE);
+    private static final ByteBuffer outBuffer = ByteBuffer.allocate(ENTRY_SIZE);
 
     /** The dictionary hash table is stored in this file. */
     RandomAccessFile dictionaryFile;
@@ -157,14 +159,14 @@ public class PersistentHashedIndex implements Index {
      * @param ptr The place in the dictionary file to store the entry
      */
     void writeEntry(Entry entry, long ptr) {
-        ptr = ptr * (LONG_SIZE + 2*INT_SIZE);
+        ptr = ptr * (long) ENTRY_SIZE;
+        outBuffer.putLong(0, entry.start);
+        outBuffer.putInt(8, entry.size);
+        outBuffer.putInt(12, entry.shash);
+
         try {
             dictionaryFile.seek(ptr);
-            dictionaryFile.writeLong(entry.start);
-            dictionaryFile.seek(ptr+LONG_SIZE);
-            dictionaryFile.writeInt(entry.size);
-            dictionaryFile.seek(ptr+LONG_SIZE+INT_SIZE);
-            dictionaryFile.writeInt(entry.shash);
+            dictionaryFile.write(outBuffer.array());
         } catch (IOException e) {
             e.printStackTrace();
             System.err.println(ptr);
@@ -180,15 +182,17 @@ public class PersistentHashedIndex implements Index {
      * @param ptr The place in the dictionary file where to start reading.
      */
     Entry readEntry(long ptr) throws DataFormatException {
-        ptr = ptr * (LONG_SIZE + 2*INT_SIZE);
+        ptr = ptr * (long) ENTRY_SIZE;
+        byte[] bytes = new byte[ENTRY_SIZE];
 
         try {
             dictionaryFile.seek(ptr);
-            long pos = dictionaryFile.readLong();
-            dictionaryFile.seek(ptr + (int) LONG_SIZE);
-            int size = dictionaryFile.readInt();
-            dictionaryFile.seek(ptr + LONG_SIZE + INT_SIZE);
-            int shash = dictionaryFile.readInt();
+            dictionaryFile.readFully(bytes);
+            inBuffer.put(bytes, 0, bytes.length);
+            inBuffer.flip();
+            long pos = inBuffer.getLong(0);
+            int size = inBuffer.getInt(8);
+            int shash = inBuffer.getInt(12);
 
             if (pos == 0L && size == 0) {
                 throw new DataFormatException("Hash at location" + ptr + "does not exist.");
@@ -258,7 +262,7 @@ public class PersistentHashedIndex implements Index {
             // Write the dictionary and the postings list
             for (Map.Entry<String, PostingsList> entry: index.entrySet()) {
 
-                int hash = HashToken.hash(entry.getKey());
+                int hash = Utils.hash(entry.getKey());
 
                 int size = writeData(entry.getValue().toString(), free);
                 for (;;) {
@@ -270,7 +274,7 @@ public class PersistentHashedIndex implements Index {
                     dictionary.put(hash, free);
                     break;
                 }
-                int shash = HashToken.reverseHash(entry.getKey());
+                int shash = Utils.reverseHash(entry.getKey());
                 writeEntry(new Entry(free, size, shash), hash);
                 free += size;
                 // System.err.println(entry.getKey());
@@ -290,8 +294,8 @@ public class PersistentHashedIndex implements Index {
      * DONE
      */
     public PostingsList getPostings(String token) {
-        int hash = HashToken.hash(token);
-        int shash = HashToken.reverseHash(token);
+        int hash = Utils.hash(token);
+        int shash = Utils.reverseHash(token);
 
         Entry entry;
 
