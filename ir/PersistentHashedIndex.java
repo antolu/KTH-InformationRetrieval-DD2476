@@ -270,7 +270,7 @@ public class PersistentHashedIndex implements Index {
                     dictionary.put(hash, free);
                     break;
                 }
-                int shash = entry.getKey().hashCode();
+                int shash = HashToken.reverseHash(entry.getKey());
                 writeEntry(new Entry(free, size, shash), hash);
                 free += size;
                 // System.err.println(entry.getKey());
@@ -291,13 +291,9 @@ public class PersistentHashedIndex implements Index {
      */
     public PostingsList getPostings(String token) {
         int hash = HashToken.hash(token);
-        int shash = token.hashCode();
+        int shash = HashToken.reverseHash(token);
 
         Entry entry;
-
-        int origHash = hash;
-        
-        long start = System.currentTimeMillis();
 
         for (;;) {
             try {
@@ -311,22 +307,10 @@ public class PersistentHashedIndex implements Index {
             }
         }
 
-        long end = System.currentTimeMillis();
-
-        System.out.println("Number of hash collisions: " + (hash-origHash));
-        System.out.println("Time to get entry for token " + token + " " + (end-start) + " ms");
-
-
         try {
             dataFile.seek(entry.start);
-            start = System.currentTimeMillis();
 
             String postingsList = readData(entry.start, entry.size);
-
-            end = System.currentTimeMillis();
-            System.out.println("Time to get pl for token " + token + " " + (end-start) + " ms");
-
-            start = System.currentTimeMillis();
 
             /** Parse string */
             String[] postingsEntries = postingsList.split(":");
@@ -343,15 +327,12 @@ public class PersistentHashedIndex implements Index {
 
                 PostingsEntry postingsEntry = new PostingsEntry(intEntryData[0], intEntryData[1]);
                 postingsEntry.reserveOffsetCapacity(entryData.length);
-                
+
                 for (int k = 2; k < entryData.length; k++) {
                     postingsEntry.addPosition(intEntryData[k]);
                 }
                 pl.add(postingsEntry);
             }
-
-            end = System.currentTimeMillis();
-            System.out.println("Time to parse list for token " + token + " " + (end-start) + " ms\n");
 
             return pl;
         } catch (IOException e) {
