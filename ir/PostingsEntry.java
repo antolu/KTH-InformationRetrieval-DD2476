@@ -47,6 +47,10 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
         positionList.add(offset);
     }
 
+    public void reserveOffsetCapacity(int cap) {
+        positionList.ensureCapacity(cap);
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

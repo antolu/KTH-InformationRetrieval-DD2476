@@ -331,17 +331,21 @@ public class PersistentHashedIndex implements Index {
             /** Parse string */
             String[] postingsEntries = postingsList.split(":");
             PostingsList pl = new PostingsList();
-            for (String e: postingsEntries) {
-                String[] entryData = e.split(",");
+            pl.ensureCapacity(postingsEntries.length);
+
+            for (int i = 0; i < postingsEntries.length; i++) {
+                String[] entryData = postingsEntries[i].split(",");
                 int[] intEntryData = new int[entryData.length];
 
-                for (int i = 0; i < entryData.length; i++) {
-                    intEntryData[i] = Integer.parseInt(entryData[i]);
+                for (int j = 0; j < entryData.length; j++) {
+                    intEntryData[j] = Integer.parseInt(entryData[j]);
                 }
 
                 PostingsEntry postingsEntry = new PostingsEntry(intEntryData[0], intEntryData[1]);
-                for (int i = 2; i < entryData.length; i++) {
-                    postingsEntry.addPosition(intEntryData[i]);
+                postingsEntry.reserveOffsetCapacity(entryData.length);
+                
+                for (int k = 2; k < entryData.length; k++) {
+                    postingsEntry.addPosition(intEntryData[k]);
                 }
                 pl.add(postingsEntry);
             }
