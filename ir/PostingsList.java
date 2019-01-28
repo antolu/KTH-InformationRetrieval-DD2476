@@ -10,6 +10,7 @@ package ir;
 import java.util.ArrayList;
 import java.lang.Comparable;
 import java.lang.Integer;
+import java.lang.StringBuilder;
 
 public class PostingsList extends ArrayList<PostingsEntry> implements Comparable<PostingsList> {
 
@@ -22,8 +23,19 @@ public class PostingsList extends ArrayList<PostingsEntry> implements Comparable
         return Integer.compare(o.size(), this.size());
     }
 
-    // 
-    //  YOUR CODE HERE
-    //
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+
+        for (PostingsEntry pe: this) {
+            sb.append(pe.toString());
+            sb.append(":");
+        }
+
+        /** Remove overflowing semicolon */
+        sb.setLength(sb.length() - 1);
+        
+        return sb.toString();
+    }
 }
 

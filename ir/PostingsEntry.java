@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.StringTokenizer;
 import java.io.Serializable;
+import java.lang.StringBuilder;
 
 public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
 
@@ -46,9 +47,25 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
         positionList.add(offset);
     }
 
+    public void reserveOffsetCapacity(int cap) {
+        positionList.ensureCapacity(cap);
+    }
 
-    //
-    // YOUR CODE HERE
-    //
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+
+        sb.append(docID);
+        sb.append(",");
+
+        for (int offset: positionList) {
+            sb.append(offset);
+            sb.append(",");
+        }
+
+        sb.setLength(sb.length() - 1);
+
+        return sb.toString();
+    }
 }
 

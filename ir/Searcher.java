@@ -57,7 +57,7 @@ public class Searcher {
                 String token = query.queryterm.get(0).term;
 
                 PostingsList list = index.getPostings(token);
-
+                
                 return list;
             }
         } catch (IllegalArgumentException e) {
@@ -75,9 +75,8 @@ public class Searcher {
         // Collections.sort(postingsLists);
         Collections.reverse(orderPostingsList);
 
-        System.out.println(orderPostingsList.size());
-        System.out.println(orderPostingsList.get(0).size());
-
+        // System.out.println(orderPostingsList.size());
+        // System.out.println(orderPostingsList.get(0).size());
 
         PostingsList p1 = orderPostingsList.get(orderPostingsList.size() - 1);
 

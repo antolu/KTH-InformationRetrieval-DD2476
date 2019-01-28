@@ -9,35 +9,53 @@
         {
             "label": "Compile",
             "command": "",
-            "args" : ["scripts\\compile_all.bat"],
+            "args": [
+                "scripts\\compile_all.bat"
+            ],
             "group": {
                 "kind": "build"
-            }
+            },
+            "problemMatcher": []
         },
         {
             "label": "TokenTest",
             "command": "",
-            "args": ["scripts\\run_tokenizer.bat"
+            "args": [
+                "scripts\\run_tokenizer.bat"
             ],
-            "options" : {
+            "options": {
                 "cwd": "${workspaceRoot}"
             },
             "group": {
-                "kind": "test",
-            },
+                "kind": "test"
+            }
         },
         {
             "label": "Search engine",
             "command": "",
-            "args": ["scripts\\run_search_engine.bat"
+            "args": [
+                "scripts\\run_search_engine.bat"
             ],
-            "options" : {
+            "options": {
                 "cwd": "${workspaceRoot}"
             },
             "group": {
                 "kind": "test",
                 "isDefault": true
+            }
+        },
+        {
+            "label": "Persistent",
+            "command": "",
+            "args": [
+                "scripts\\run_persistent.bat"
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}"
             },
+            "group": {
+                "kind": "test"
+            }
         }
     ]
 }
