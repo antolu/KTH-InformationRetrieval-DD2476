@@ -56,6 +56,32 @@
             "group": {
                 "kind": "test"
             }
+        },
+        {
+            "label": "Guardian index",
+            "command": "",
+            "args": [
+                "scripts\\run_search_engine_guardian.bat"
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "group": {
+                "kind": "test"
+            }
+        },
+        {
+            "label": "Guardian persistent",
+            "command": "",
+            "args": [
+                "scripts\\run_persistent_guardian.bat"
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "group": {
+                "kind": "test"
+            }
         }
     ]
 }

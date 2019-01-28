@@ -1,1 +1,1 @@
-java -cp classes -Xmx1g ir.Engine -d c:\guardian -l ir19.gif -p patterns.txt
+java -cp classes -Xmx1g ir.Engine -d ..\guardian -l ..\ir19.gif -p ..\patterns.txt
