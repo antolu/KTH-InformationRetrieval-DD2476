@@ -265,13 +265,13 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             dataFiles.remove(0);
 
             System.err.println("Starting merge of " + currentMergedFile + " and " + processedFiles);
-            // t = new Thread() {
-            //     public void run() {
-            //         mergeIndexes(processedFiles++, index1, index2, data1, data2);
-            //     }
-            // };
-            // t.start();
-            mergeIndexes(processedFiles++, index1, index2, data1, data2);
+            t = new Thread() {
+                public void run() {
+                    mergeIndexes(processedFiles++, index1, index2, data1, data2);
+                }
+            };
+            t.start();
+            // mergeIndexes(processedFiles++, index1, index2, data1, data2);
         }
 
         /** Reset for next write */
@@ -279,7 +279,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         free = 0L;
     }
 
-    private void mergeIndexes(int idx2, RandomAccessFile index1, RandomAccessFile index2,
+    private synchronized void mergeIndexes(int idx2, RandomAccessFile index1, RandomAccessFile index2,
             RandomAccessFile data1, RandomAccessFile data2) {
         String idx2String = Integer.toString(idx2);
         String mergedName = currentMergedFile + idx2String;
@@ -464,15 +464,22 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
     @Override
     public void cleanup() {
         /** Write last index */
+
+        System.err.println("Waiting for current disk merge to complete...");
+        try {
+            t.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         System.err.println("Writing last partial index to disk...");
         writePartialIndex();
 
-        // System.err.println("Waiting for current disk merge to complete...");
-        // try {
-        //     t.join();
-        // } catch (InterruptedException e) {
-        //     e.printStackTrace();
-        // }
+        try {
+            t.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
         System.err.println("Running final disk merges...");
         while (dataFiles.size() > 1) {
