@@ -502,18 +502,32 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             dataFile.close();
             dictionaryFile.close();
 
+            /** Delete last index file */
+            File file = new File(INDEXDIR + "/indexKeys" + currentMergedFile);
+            file.delete();
+
             /** Rename files */
             File dataFrom = new File(INDEXDIR + "/" + DATA_FNAME + currentMergedFile);
             File dataTo = new File(INDEXDIR + "/" + DATA_FNAME);
+            dataTo.delete();
             dataFrom.renameTo(dataTo);
+            dataFrom.delete();
 
             File dictionaryFrom = new File(INDEXDIR + "/" + DICTIONARY_FNAME + currentMergedFile);
             File dictionaryTo = new File(INDEXDIR + "/" + DICTIONARY_FNAME);
+            dictionaryTo.delete();
             dictionaryFrom.renameTo(dictionaryTo);
+            dictionaryFrom.delete();
+
+            File docInfoFrom = new File(INDEXDIR + "/" + DOCINFO_FNAME + currentMergedFile);
+            File docInfoTo = new File(INDEXDIR + "/" + DOCINFO_FNAME);
+            docInfoFrom.renameTo(docInfoTo);
+            docInfoFrom.delete();
+            readDocInfo();
 
             /** Reopen files */
-            dataFile = new RandomAccessFile(dataFrom, "rw");
-            dictionaryFile = new RandomAccessFile(dictionaryFrom, "rw");
+            dataFile = new RandomAccessFile(INDEXDIR + "/" + DATA_FNAME, "rw");
+            dictionaryFile = new RandomAccessFile(INDEXDIR + "/" + DICTIONARY_FNAME, "rw");
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
