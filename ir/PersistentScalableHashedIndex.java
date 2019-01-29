@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
-    private static final int INDEX_THRESHOLD = 1 << 20;
+    private static final int INDEX_THRESHOLD = 1 << 23;
 
     private int noDataFiles = 0;
     private int processedFiles = 1;
@@ -162,7 +162,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
             HashMap<Integer, Integer> indexKeys = new HashMap<>();
 
-            buffer.flip();
+            // buffer.flip();
             for (int i = 0; i < bytes.length; i += 8)
                 indexKeys.put(buffer.getInt(i), buffer.getInt(i + 4));
 
@@ -254,6 +254,14 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         writeIndexKeys(dictionary, Integer.toString(noDataFiles - 1));
         indexKeyNames.add(Integer.toString(noDataFiles - 1));
 
+        System.err.println("Written partial index " + (noDataFiles-1) + " to file");
+
+        try {
+            TimeUnit.SECONDS.sleep(2);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         if (dataFiles.size() >= 2 && !t.isAlive()) {
             RandomAccessFile index1 = dictionaryFiles.get(0);
             RandomAccessFile index2 = dictionaryFiles.get(1);
@@ -282,7 +290,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         free = 0L;
     }
 
-    private synchronized void mergeIndexes(int idx2, RandomAccessFile index1, RandomAccessFile index2,
+    private void mergeIndexes(int idx2, RandomAccessFile index1, RandomAccessFile index2,
             RandomAccessFile data1, RandomAccessFile data2) {
         String idx2String = Integer.toString(idx2);
         String mergedName = currentMergedFile + idx2String;
@@ -455,47 +463,43 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
         noProcessedTokens++;
         if (noProcessedTokens >= INDEX_THRESHOLD) {
-            System.err.print("Writing partial index to disk...");
+            System.err.println("Writing partial index to disk...");
             writePartialIndex();
-            System.err.println("done!");
         }
     }
 
     @Override
     public void cleanup() {
         /** Write last index */
+        System.err.println("Writing last partial index to disk...");
         writePartialIndex();
 
-        System.err.print("Waiting for disk merge to complete...");
+        System.err.println("Waiting for current disk merge to complete...");
         try {
             t.join();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        try {
+            TimeUnit.SECONDS.sleep(5);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        System.err.println("Running final disk merges...");
         while (dataFiles.size() > 1) {
-            if (!t.isAlive()) {
-                RandomAccessFile index1 = dictionaryFiles.get(0);
-                RandomAccessFile index2 = dictionaryFiles.get(1);
-                dictionaryFiles.remove(0);
-                dictionaryFiles.remove(0);
+            RandomAccessFile index1 = dictionaryFiles.get(0);
+            RandomAccessFile index2 = dictionaryFiles.get(1);
+            dictionaryFiles.remove(0);
+            dictionaryFiles.remove(0);
 
-                RandomAccessFile data1 = dataFiles.get(0);
-                RandomAccessFile data2 = dataFiles.get(1);
-                dataFiles.remove(0);
-                dataFiles.remove(0);
+            RandomAccessFile data1 = dataFiles.get(0);
+            RandomAccessFile data2 = dataFiles.get(1);
+            dataFiles.remove(0);
+            dataFiles.remove(0);
 
-                t = new Thread() {
-                    public void run() {
-                        mergeIndexes(processedFiles++, index1, index2, data1, data2);
-                    }
-                };
-            } else {
-                try {
-                    TimeUnit.SECONDS.sleep(1);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
+            mergeIndexes(processedFiles++, index1, index2, data1, data2);
         }
 
         noUniqueTokens += noProcessedTokens;
