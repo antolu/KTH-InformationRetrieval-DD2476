@@ -250,7 +250,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         }
 
         writeIndexKeys(dictionary, Integer.toString(noDataFiles - 1));
-        indexKeyNames.add(Integer.toString(noDataFiles - 1));
 
         System.err.println("Written partial index " + (noDataFiles-1) + " to file");
 
@@ -277,7 +276,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
         /** Reset for next write */
         index.clear();
-        dictionary.clear();
         free = 0L;
     }
 
@@ -315,6 +313,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         HashMap<Integer, Integer> indexKeys1 = readIndexKeys(currentMergedFile);
         HashMap<Integer, Integer> indexKeys2 = readIndexKeys(idx2String);
         HashMap<Integer, Integer> dict = new HashMap<>();
+        HashMap<Integer, Integer> reverseDict = new HashMap<>();
 
         try {
             RandomAccessFile mergedFile = new RandomAccessFile(INDEXDIR + "/" + DATA_FNAME + mergedName, "rw");
@@ -335,6 +334,8 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
                     String mergedData = d1 + PostingsList.ENTRY_DELIM + d2;
 
+                    int size = writeData(mergedFile, mergedData, ptr);
+                    
                     /** Write to new file with hash of first one */
                     for (;;) {
                         if (dict.containsKey(hash1)) {
@@ -343,10 +344,9 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                             continue;
                         }
                         dict.put(hash1, origHash1);
+                        reverseDict.put(origHash1, hash1);
                         break;
                     }
-
-                    int size = writeData(mergedFile, mergedData, ptr);
 
                     writeEntry(mergedDict, new Entry(ptr, size, entry1.shash), hash1);
                     ptr += size;
@@ -354,6 +354,8 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                     int hash1 = indexKeys1.get(origHash1);
                     Entry entry1 = readEntry(index1, hash1);
                     String d1 = readData(data1, entry1.start, entry1.size);
+                    
+                    int size = writeData(mergedFile, d1, ptr);
 
                     /** Write to new file with hash of first one */
                     for (;;) {
@@ -363,10 +365,10 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                             continue;
                         }
                         dict.put(hash1, origHash1);
+                        reverseDict.put(origHash1, hash1);
                         break;
                     }
 
-                    int size = writeData(mergedFile, d1, ptr);
 
                     writeEntry(mergedDict, new Entry(ptr, size, entry1.shash), hash1);
                     ptr += size;
@@ -375,10 +377,12 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
             /** Write the rest of entries from file2 to merged */
             for (int origHash2 : indexKeys2.keySet()) {
-                if (!dict.containsKey(origHash2)) {
+                if (!reverseDict.containsKey(origHash2)) {
                     int hash2 = indexKeys2.get(origHash2);
                     Entry entry2 = readEntry(index2, hash2);
                     String d2 = readData(data2, entry2.start, entry2.size);
+                    
+                    int size = writeData(mergedFile, d2, ptr);
 
                     /** Write to new file with hash of first one */
                     for (;;) {
@@ -388,10 +392,9 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                             continue;
                         }
                         dict.put(hash2, origHash2);
+                        reverseDict.put(origHash2, hash2);
                         break;
                     }
-
-                    int size = writeData(mergedFile, d2, ptr);
 
                     writeEntry(mergedDict, new Entry(ptr, size, entry2.shash), hash2);
                     ptr += size;
@@ -411,13 +414,13 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             index1.close();
             index2.close();
 
-            // String[] toDelete = { DATA_FNAME + currentMergedFile, DATA_FNAME + idx2String,
-            //         DICTIONARY_FNAME + currentMergedFile, DICTIONARY_FNAME + idx2String, "docInfo" + currentMergedFile,
-            //         "docInfo" + idx2String, "indexKeys" + currentMergedFile, "indexKeys" + idx2String };
-            // for (String s : toDelete) {
-            //     File file = new File(INDEXDIR + "/" + s);
-            //     file.delete();
-            // }
+            String[] toDelete = { DATA_FNAME + currentMergedFile, DATA_FNAME + idx2String,
+                    DICTIONARY_FNAME + currentMergedFile, DICTIONARY_FNAME + idx2String, "docInfo" + currentMergedFile,
+                    "docInfo" + idx2String, "indexKeys" + currentMergedFile, "indexKeys" + idx2String };
+            for (String s : toDelete) {
+                File file = new File(INDEXDIR + "/" + s);
+                file.delete();
+            }
 
             System.err.println("Finished merge of " + currentMergedFile + " and " + idx2String);
             currentMergedFile = mergedName;
