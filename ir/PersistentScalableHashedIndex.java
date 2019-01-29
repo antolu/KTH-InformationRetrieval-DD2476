@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
-    private static final int INDEX_THRESHOLD = 1 << 23;
+    private static final int INDEX_THRESHOLD = 1 << 12;
 
     private int noDataFiles = 0;
     private int processedFiles = 1;
@@ -26,13 +26,13 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
     private ArrayList<RandomAccessFile> dataFiles = new ArrayList<>();
     private ArrayList<RandomAccessFile> dictionaryFiles = new ArrayList<>();
-    private ArrayList<RandomAccessFile> indexKeyFiles = new ArrayList<>();
     private ArrayList<String> indexKeyNames = new ArrayList<>();
 
     private RandomAccessFile currentDataFile;
     private RandomAccessFile currentDictionaryFile;
 
     private String currentMergedFile = "0";
+    private int lastSavedID = 0;
 
     private Thread t = new Thread();
 
@@ -142,7 +142,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                 buffer.putInt(entry.getValue());
                 buffer.putInt(entry.getKey());
             }
-
+            buffer.flip();
             fout.write(buffer.array());
             fout.close();
         } catch (IOException e) {
@@ -159,10 +159,10 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
             ByteBuffer buffer = ByteBuffer.allocate(bytes.length);
             buffer.put(bytes);
+            buffer.flip();
 
             HashMap<Integer, Integer> indexKeys = new HashMap<>();
 
-            // buffer.flip();
             for (int i = 0; i < bytes.length; i += 8)
                 indexKeys.put(buffer.getInt(i), buffer.getInt(i + 4));
 
@@ -243,7 +243,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                     collisions++;
                     continue;
                 }
-                dictionary.put(hash, shash);
+                dictionary.put(hash, entry.getKey().hashCode());
                 break;
             }
             writeEntry(currentDictionaryFile, new Entry(free, size, shash), hash);
@@ -255,12 +255,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         indexKeyNames.add(Integer.toString(noDataFiles - 1));
 
         System.err.println("Written partial index " + (noDataFiles-1) + " to file");
-
-        try {
-            TimeUnit.SECONDS.sleep(2);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
 
         if (dataFiles.size() >= 2 && !t.isAlive()) {
             RandomAccessFile index1 = dictionaryFiles.get(0);
@@ -274,12 +268,13 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             dataFiles.remove(0);
 
             System.err.println("Starting merge of " + currentMergedFile + " and " + processedFiles);
-            t = new Thread() {
-                public void run() {
-                    mergeIndexes(processedFiles++, index1, index2, data1, data2);
-                }
-            };
-            t.start();
+            // t = new Thread() {
+            //     public void run() {
+            //         mergeIndexes(processedFiles++, index1, index2, data1, data2);
+            //     }
+            // };
+            // t.start();
+            mergeIndexes(processedFiles++, index1, index2, data1, data2);
         }
 
         /** Reset for next write */
@@ -445,6 +440,13 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
     @Override
     public void insert(String token, int docID, int offset) {
+        noProcessedTokens++;
+        if (docID % INDEX_THRESHOLD == 0 && docID != lastSavedID) {
+            System.err.println("Writing partial index to disk...");
+            writePartialIndex();
+            lastSavedID = docID;
+        }
+
         if (!index.containsKey(token)) {
             // Add to general purpose index
             PostingsList list = new PostingsList();
@@ -460,12 +462,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             else if (list.get(list.size() - 1).docID == docID)
                 list.get(list.size() - 1).addPosition(offset);
         }
-
-        noProcessedTokens++;
-        if (noProcessedTokens >= INDEX_THRESHOLD) {
-            System.err.println("Writing partial index to disk...");
-            writePartialIndex();
-        }
     }
 
     @Override
@@ -474,18 +470,12 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         System.err.println("Writing last partial index to disk...");
         writePartialIndex();
 
-        System.err.println("Waiting for current disk merge to complete...");
-        try {
-            t.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        try {
-            TimeUnit.SECONDS.sleep(5);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        // System.err.println("Waiting for current disk merge to complete...");
+        // try {
+        //     t.join();
+        // } catch (InterruptedException e) {
+        //     e.printStackTrace();
+        // }
 
         System.err.println("Running final disk merges...");
         while (dataFiles.size() > 1) {
