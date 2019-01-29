@@ -17,14 +17,13 @@ import java.util.concurrent.TimeUnit;
 
 public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
-    private static final int INDEX_THRESHOLD = 1 << 12;
+    private static final int INDEX_THRESHOLD = 1 << 13;
 
     private int noDataFiles = 0;
     private int processedFiles = 1;
 
-    private ArrayList<RandomAccessFile> dataFiles = new ArrayList<>();
-    private ArrayList<RandomAccessFile> dictionaryFiles = new ArrayList<>();
-    private ArrayList<String> indexKeyNames = new ArrayList<>();
+    private final ArrayList<RandomAccessFile> dataFiles = new ArrayList<>();
+    private final ArrayList<RandomAccessFile> dictionaryFiles = new ArrayList<>();
 
     private RandomAccessFile currentDataFile;
     private RandomAccessFile currentDictionaryFile;
