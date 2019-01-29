@@ -64,7 +64,7 @@ public class PersistentHashedIndex implements Index {
 
     protected int collisions = 0;
 
-    HashMap<Integer, Long> dictionary = new HashMap<Integer, Long>();
+    // HashMap<Integer, Long> dictionary = new HashMap<Integer, Long>();
 
     /** The cache as a main-memory hash map. */
     HashMap<String, PostingsList> index = new HashMap<String, PostingsList>();
@@ -263,6 +263,7 @@ public class PersistentHashedIndex implements Index {
      * DONE
      */
     public void writeIndex() {
+        HashMap<Integer, Long> dictionary = new HashMap<Integer, Long>();
         try {
             // Write the 'docNames' and 'docLengths' hash maps to a file
             writeDocInfo();
