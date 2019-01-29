@@ -40,6 +40,21 @@
                 "-p",
                 "../patterns.txt",
             ]
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-Guardian index",
+            "request": "launch",
+            "cwd" : "${workspaceRoot}\\build",
+            "mainClass": "ir.Engine",
+            "args" : [
+                "-d",
+                "../guardian",
+                "-l",
+                "../ir19.gif",
+                "-p",
+                "../patterns.txt",
+            ]
         }
     ]
 }
