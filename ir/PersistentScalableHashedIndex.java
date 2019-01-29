@@ -21,8 +21,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
     private int noDataFiles = 0;
     private int processedFiles = 1;
-    private int noProcessedTokens = 0;
-    private int noUniqueTokens = 0;
 
     private ArrayList<RandomAccessFile> dataFiles = new ArrayList<>();
     private ArrayList<RandomAccessFile> dictionaryFiles = new ArrayList<>();
@@ -212,7 +210,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
     }
 
     private void writePartialIndex() {
-        /** If two or more files done, merge them (threaded) */
+        System.err.println("Writing partial index " + noDataFiles + " to disk...");
 
         // Write the 'docNames' and 'docLengths' hash maps to a file
         writePartialDocInfo(Integer.toString(noDataFiles), docNames, docLengths);
@@ -278,8 +276,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         }
 
         /** Reset for next write */
-        noUniqueTokens += noProcessedTokens;
-        noProcessedTokens = 0;
         index.clear();
         dictionary.clear();
         free = 0L;
@@ -415,13 +411,13 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             index1.close();
             index2.close();
 
-            String[] toDelete = { DATA_FNAME + currentMergedFile, DATA_FNAME + idx2String,
-                    DICTIONARY_FNAME + currentMergedFile, DICTIONARY_FNAME + idx2String, "docInfo" + currentMergedFile,
-                    "docInfo" + idx2String, "indexKeys" + currentMergedFile, "indexKeys" + idx2String };
-            for (String s : toDelete) {
-                File file = new File(INDEXDIR + "/" + s);
-                file.delete();
-            }
+            // String[] toDelete = { DATA_FNAME + currentMergedFile, DATA_FNAME + idx2String,
+            //         DICTIONARY_FNAME + currentMergedFile, DICTIONARY_FNAME + idx2String, "docInfo" + currentMergedFile,
+            //         "docInfo" + idx2String, "indexKeys" + currentMergedFile, "indexKeys" + idx2String };
+            // for (String s : toDelete) {
+            //     File file = new File(INDEXDIR + "/" + s);
+            //     file.delete();
+            // }
 
             System.err.println("Finished merge of " + currentMergedFile + " and " + idx2String);
             currentMergedFile = mergedName;
@@ -440,9 +436,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
     @Override
     public void insert(String token, int docID, int offset) {
-        noProcessedTokens++;
         if (docID % INDEX_THRESHOLD == 0 && docID != lastSavedID) {
-            System.err.println("Writing partial index to disk...");
             writePartialIndex();
             lastSavedID = docID;
         }
@@ -492,8 +486,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             mergeIndexes(processedFiles++, index1, index2, data1, data2);
         }
 
-        noUniqueTokens += noProcessedTokens;
-        System.err.println(noUniqueTokens + " unique words");
         System.err.println(collisions + " collisions.");
 
         System.err.println("Moving files into place...");
