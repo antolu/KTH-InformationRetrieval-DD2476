@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
-    private static final int INDEX_THRESHOLD = 1 << 16;
+    private static final int INDEX_THRESHOLD = 1 << 20;
 
     private int noDataFiles = 0;
     private int processedFiles = 1;
@@ -34,10 +34,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
     private String currentMergedFile = "0";
 
-    private ArrayList<String> toMerge = new ArrayList<>();
-
-    private Thread t;
-    private ArrayList<Thread> threads = new ArrayList<>();
+    private Thread t = new Thread();
 
     public PersistentScalableHashedIndex() {
         super();
@@ -139,7 +136,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         try {
             FileOutputStream fout = new FileOutputStream(INDEXDIR + "/indexKeys" + idx);
 
-            ByteBuffer buffer = ByteBuffer.allocate(indexKeys.size() * 4);
+            ByteBuffer buffer = ByteBuffer.allocate(indexKeys.size() * 4 * 2);
 
             for (Map.Entry<Integer, Integer> entry : indexKeys.entrySet()) { // Invert
                 buffer.putInt(entry.getValue());
@@ -158,13 +155,15 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             RandomAccessFile file = new RandomAccessFile(INDEXDIR + "/indexKeys" + idx, "rw");
 
             byte[] bytes = new byte[(int) file.length()];
+            file.readFully(bytes);
 
             ByteBuffer buffer = ByteBuffer.allocate(bytes.length);
+            buffer.put(bytes);
 
             HashMap<Integer, Integer> indexKeys = new HashMap<>();
 
             buffer.flip();
-            for (int i = 0; i < bytes.length - 4; i += 4)
+            for (int i = 0; i < bytes.length; i += 8)
                 indexKeys.put(buffer.getInt(i), buffer.getInt(i + 4));
 
             file.close();
@@ -196,7 +195,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         }
     }
 
-    protected void readDocInfo(HashMap<Integer, String> names, HashMap<Integer, Integer> lengths, int idx)
+    protected void readDocInfo(HashMap<Integer, String> names, HashMap<Integer, Integer> lengths, String idx)
             throws IOException {
         File file = new File(INDEXDIR + "/docInfo" + idx);
         FileReader freader = new FileReader(file);
@@ -247,7 +246,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                 dictionary.put(hash, shash);
                 break;
             }
-            writeEntry(new Entry(free, size, shash), hash);
+            writeEntry(currentDictionaryFile, new Entry(free, size, shash), hash);
             free += size;
             // System.err.println(entry.getKey());
         }
@@ -266,11 +265,13 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             dataFiles.remove(0);
             dataFiles.remove(0);
 
+            System.err.println("Starting merge of " + currentMergedFile + " and " + processedFiles);
             t = new Thread() {
                 public void run() {
                     mergeIndexes(processedFiles++, index1, index2, data1, data2);
                 }
             };
+            t.start();
         }
 
         /** Reset for next write */
@@ -279,10 +280,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         index.clear();
         dictionary.clear();
         free = 0L;
-    }
-
-    private void merge() {
-
     }
 
     private synchronized void mergeIndexes(int idx2, RandomAccessFile index1, RandomAccessFile index2,
@@ -298,8 +295,8 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         HashMap<Integer, Integer> lengths2 = new HashMap<>();
 
         try {
-            readDocInfo(names1, lengths1, Integer.parseInt(currentMergedFile));
-            readDocInfo(names2, lengths2, idx2);
+            readDocInfo(names1, lengths1, currentMergedFile);
+            readDocInfo(names2, lengths2, idx2String);
 
             HashMap<Integer, String> mergedNames = new HashMap<>();
             HashMap<Integer, Integer> mergedLengths = new HashMap<>();
@@ -309,7 +306,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             mergedLengths.putAll(lengths1);
             mergedLengths.putAll(lengths2);
 
-            writePartialDocInfo(currentMergedFile + idx2String, mergedNames, mergedLengths);
+            writePartialDocInfo(mergedName, mergedNames, mergedLengths);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -375,30 +372,30 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                     writeEntry(mergedDict, new Entry(ptr, size, entry1.shash), hash1);
                     ptr += size;
                 }
+            }
 
-                /** Write the rest of entries from file2 to merged */
-                for (int origHash2 : indexKeys2.keySet()) {
-                    if (!dict.containsKey(origHash2)) {
-                        int hash2 = indexKeys2.get(origHash2);
-                        Entry entry2 = readEntry(index2, hash2);
-                        String d2 = readData(data2, entry2.start, entry2.size);
+            /** Write the rest of entries from file2 to merged */
+            for (int origHash2 : indexKeys2.keySet()) {
+                if (!dict.containsKey(origHash2)) {
+                    int hash2 = indexKeys2.get(origHash2);
+                    Entry entry2 = readEntry(index2, hash2);
+                    String d2 = readData(data2, entry2.start, entry2.size);
 
-                        /** Write to new file with hash of first one */
-                        for (;;) {
-                            if (dict.containsKey(hash2)) {
-                                hash2++;
-                                collisions++;
-                                continue;
-                            }
-                            dict.put(hash2, origHash2);
-                            break;
+                    /** Write to new file with hash of first one */
+                    for (;;) {
+                        if (dict.containsKey(hash2)) {
+                            hash2++;
+                            collisions++;
+                            continue;
                         }
-
-                        int size = writeData(mergedFile, d2, ptr);
-
-                        writeEntry(mergedDict, new Entry(ptr, size, entry2.shash), hash2);
-                        ptr += size;
+                        dict.put(hash2, origHash2);
+                        break;
                     }
+
+                    int size = writeData(mergedFile, d2, ptr);
+
+                    writeEntry(mergedDict, new Entry(ptr, size, entry2.shash), hash2);
+                    ptr += size;
                 }
             }
 
@@ -415,17 +412,15 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             index1.close();
             index2.close();
 
-            String[] toDelete = {
-                DATA_FNAME + currentMergedFile, DATA_FNAME + idx2String,
-                DICTIONARY_FNAME + currentMergedFile, DICTIONARY_FNAME + idx2String, 
-                "docInfo" + currentMergedFile, "docInfo" + idx2String, 
-                "indexKeys" + currentMergedFile, "indexKeys" + idx2String 
-            };
+            String[] toDelete = { DATA_FNAME + currentMergedFile, DATA_FNAME + idx2String,
+                    DICTIONARY_FNAME + currentMergedFile, DICTIONARY_FNAME + idx2String, "docInfo" + currentMergedFile,
+                    "docInfo" + idx2String, "indexKeys" + currentMergedFile, "indexKeys" + idx2String };
             for (String s : toDelete) {
                 File file = new File(INDEXDIR + "/" + s);
                 file.delete();
             }
 
+            System.err.println("Finished merge of " + currentMergedFile + " and " + idx2String);
             currentMergedFile = mergedName;
             return;
         } catch (FileNotFoundException e) {
@@ -460,7 +455,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
         noProcessedTokens++;
         if (noProcessedTokens >= INDEX_THRESHOLD) {
-            System.err.print("Writing index to disk...");
+            System.err.print("Writing partial index to disk...");
             writePartialIndex();
             System.err.println("done!");
         }
@@ -468,9 +463,8 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
     @Override
     public void cleanup() {
-        noUniqueTokens += noProcessedTokens;
-        System.err.println(noUniqueTokens + " unique words");
-        System.err.println(collisions + " collisions.");
+        /** Write last index */
+        writePartialIndex();
 
         System.err.print("Waiting for disk merge to complete...");
         try {
@@ -504,29 +498,33 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             }
         }
 
+        noUniqueTokens += noProcessedTokens;
+        System.err.println(noUniqueTokens + " unique words");
+        System.err.println(collisions + " collisions.");
+
         System.err.println("Moving files into place...");
 
         try {
 
-        /** re-point the index files */
-        dataFiles.get(0).close();
-        dictionaryFiles.get(0).close();
+            /** re-point the index files */
+            dataFiles.get(0).close();
+            dictionaryFiles.get(0).close();
 
-        dataFile.close();
-        dictionaryFile.close();
+            dataFile.close();
+            dictionaryFile.close();
 
-        /** Rename files */
-        File dataFrom = new File(INDEXDIR + "/" + DATA_FNAME + currentMergedFile);
-        File dataTo = new File(INDEXDIR + "/" + DATA_FNAME);
-        dataFrom.renameTo(dataTo);
+            /** Rename files */
+            File dataFrom = new File(INDEXDIR + "/" + DATA_FNAME + currentMergedFile);
+            File dataTo = new File(INDEXDIR + "/" + DATA_FNAME);
+            dataFrom.renameTo(dataTo);
 
-        File dictionaryFrom = new File(INDEXDIR + "/" + DICTIONARY_FNAME + currentMergedFile);
-        File dictionaryTo = new File(INDEXDIR + "/" + DICTIONARY_FNAME);
-        dictionaryFrom.renameTo(dictionaryTo);
+            File dictionaryFrom = new File(INDEXDIR + "/" + DICTIONARY_FNAME + currentMergedFile);
+            File dictionaryTo = new File(INDEXDIR + "/" + DICTIONARY_FNAME);
+            dictionaryFrom.renameTo(dictionaryTo);
 
-        /** Reopen files */
-        dataFile = new RandomAccessFile(dataFrom, "rw");
-        dictionaryFile = new RandomAccessFile(dictionaryFrom, "rw");
+            /** Reopen files */
+            dataFile = new RandomAccessFile(dataFrom, "rw");
+            dictionaryFile = new RandomAccessFile(dictionaryFrom, "rw");
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);

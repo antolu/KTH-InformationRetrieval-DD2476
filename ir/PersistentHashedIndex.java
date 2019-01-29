@@ -48,10 +48,10 @@ public class PersistentHashedIndex implements Index {
     public static final long TABLESIZE = 611953L;
 
     /** Byte size of a long */
-    private static final int ENTRY_SIZE = 16;
+    protected static final int ENTRY_SIZE = 16;
 
-    private static final ByteBuffer inBuffer = ByteBuffer.allocate(ENTRY_SIZE);
-    private static final ByteBuffer outBuffer = ByteBuffer.allocate(ENTRY_SIZE);
+    protected static final ByteBuffer inBuffer = ByteBuffer.allocate(ENTRY_SIZE);
+    protected static final ByteBuffer outBuffer = ByteBuffer.allocate(ENTRY_SIZE);
 
     /** The dictionary hash table is stored in this file. */
     RandomAccessFile dictionaryFile;
@@ -61,6 +61,8 @@ public class PersistentHashedIndex implements Index {
 
     /** Pointer to the first free memory cell in the data file. */
     long free = 0L;
+
+    protected int collisions = 0;
 
     HashMap<Integer, Long> dictionary = new HashMap<Integer, Long>();
 
@@ -85,6 +87,13 @@ public class PersistentHashedIndex implements Index {
         public Entry(long start, int size) {
             this.start = start;
             this.size = size;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof Entry))
+                return false;
+            return ((Entry) obj).shash == this.shash;
         }
     }
 
@@ -216,7 +225,7 @@ public class PersistentHashedIndex implements Index {
      *
      * @throws IOException { exception_description }
      */
-    private void writeDocInfo() throws IOException {
+    protected void writeDocInfo() throws IOException {
         FileOutputStream fout = new FileOutputStream(INDEXDIR + "/docInfo");
         for (Map.Entry<Integer, String> entry : docNames.entrySet()) {
             Integer key = entry.getKey();
@@ -234,7 +243,7 @@ public class PersistentHashedIndex implements Index {
      *
      * @throws IOException { exception_description }
      */
-    private void readDocInfo() throws IOException {
+    protected void readDocInfo() throws IOException {
         File file = new File(INDEXDIR + "/docInfo");
         FileReader freader = new FileReader(file);
         try (BufferedReader br = new BufferedReader(freader)) {
@@ -254,7 +263,6 @@ public class PersistentHashedIndex implements Index {
      * DONE
      */
     public void writeIndex() {
-        int collisions = 0;
         try {
             // Write the 'docNames' and 'docLengths' hash maps to a file
             writeDocInfo();
@@ -282,6 +290,7 @@ public class PersistentHashedIndex implements Index {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        index.clear();
         System.err.println(collisions + " collisions.");
     }
 
