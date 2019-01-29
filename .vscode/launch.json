@@ -25,6 +25,21 @@
                 "../patterns.txt",
                 "-ni"
             ]
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-Search Engine",
+            "request": "launch",
+            "cwd" : "${workspaceRoot}\\build",
+            "mainClass": "ir.Engine",
+            "args" : [
+                "-d",
+                "../davisWiki",
+                "-l",
+                "../ir19.gif",
+                "-p",
+                "../patterns.txt",
+            ]
         }
     ]
 }
