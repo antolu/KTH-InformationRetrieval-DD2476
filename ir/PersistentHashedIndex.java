@@ -30,7 +30,7 @@ import java.nio.ByteBuffer;
 public class PersistentHashedIndex implements Index {
 
     /** The directory where the persistent index files are stored. */
-    public static final String INDEXDIR = "../index";
+    public static final String INDEXDIR = "index";
 
     /** The dictionary file name */
     public static final String DICTIONARY_FNAME = "dictionary";
@@ -45,7 +45,8 @@ public class PersistentHashedIndex implements Index {
     public static final String DOCINFO_FNAME = "docInfo";
 
     /** The dictionary hash table on disk can fit this many entries. */
-    public static final long TABLESIZE = 3509827L;
+    // public static final long TABLESIZE = 3509827L;
+    public static final long TABLESIZE = 611953L;
 
     /** Byte size of a long */
     protected static final int ENTRY_SIZE = 16;
@@ -118,6 +119,8 @@ public class PersistentHashedIndex implements Index {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        Utils.initialize();
     }
 
     /**

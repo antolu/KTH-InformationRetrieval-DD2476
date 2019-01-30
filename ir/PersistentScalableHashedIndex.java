@@ -14,6 +14,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
+import java.nio.charset.Charset;
 
 public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
@@ -45,7 +46,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
     int writeData(RandomAccessFile file, String dataString, long ptr) {
         try {
             file.seek(ptr);
-            byte[] data = dataString.getBytes();
+            byte[] data = dataString.getBytes("UTF-8");
             file.write(data);
             return data.length;
         } catch (IOException e) {
@@ -64,7 +65,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             file.seek(ptr);
             byte[] data = new byte[size];
             file.readFully(data);
-            return new String(data);
+            return new String(data, Charset.forName("UTF-8"));
         } catch (IOException e) {
             e.printStackTrace();
             return null;
@@ -180,7 +181,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             for (Map.Entry<Integer, String> entry : docNames.entrySet()) {
                 Integer key = entry.getKey();
                 String docInfoEntry = key + ";" + entry.getValue() + ";" + docLengths.get(key) + "\n";
-                fout.write(docInfoEntry.getBytes());
+                fout.write(docInfoEntry.getBytes("UTF-8"));
             }
             docNames.clear();
             docLengths.clear();
@@ -240,7 +241,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                     collisions++;
                     continue;
                 }
-                dictionary.put(hash, entry.getKey().hashCode());
+                dictionary.put(hash, Utils.improvedHash(entry.getKey()));
                 break;
             }
             writeEntry(currentDictionaryFile, new Entry(free, size, shash), hash);
@@ -251,6 +252,11 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         writeIndexKeys(dictionary, Integer.toString(noDataFiles - 1));
 
         System.err.println("Written partial index " + (noDataFiles-1) + " to file");
+        try {
+            System.err.println("Size: " + currentDataFile.length() + " bytes");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         if (dataFiles.size() >= 2 && !t.isAlive()) {
             RandomAccessFile index1 = dictionaryFiles.get(0);
@@ -264,13 +270,13 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             dataFiles.remove(0);
 
             System.err.println("Starting merge of " + currentMergedFile + " and " + processedFiles);
-            t = new Thread() {
-                public void run() {
-                    mergeIndexes(processedFiles++, index1, index2, data1, data2);
-                }
-            };
-            t.start();
-            // mergeIndexes(processedFiles++, index1, index2, data1, data2);
+            // t = new Thread() {
+            //     public void run() {
+            //         mergeIndexes(processedFiles++, index1, index2, data1, data2);
+            //     }
+            // };
+            // t.start();
+            mergeIndexes(processedFiles++, index1, index2, data1, data2);
         }
 
         /** Reset for next write */
