@@ -270,13 +270,13 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             dataFiles.remove(0);
 
             System.err.println("Starting merge of " + currentMergedFile + " and " + processedFiles);
-            // t = new Thread() {
-            //     public void run() {
-            //         mergeIndexes(processedFiles++, index1, index2, data1, data2);
-            //     }
-            // };
-            // t.start();
-            mergeIndexes(processedFiles++, index1, index2, data1, data2);
+            t = new Thread() {
+                public void run() {
+                    mergeIndexes(processedFiles++, index1, index2, data1, data2);
+                }
+            };
+            t.start();
+            // mergeIndexes(processedFiles++, index1, index2, data1, data2);
         }
 
         /** Reset for next write */
