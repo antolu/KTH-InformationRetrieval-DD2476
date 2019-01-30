@@ -4,6 +4,7 @@ import java.lang.Math;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.ArrayList;
 
 public class Utils{
 
@@ -38,5 +39,19 @@ public class Utils{
         int hash = Arrays.hashCode(messageDigest.digest());
         messageDigest.reset();
         return hash;
+    }
+
+    public static ArrayList<String> splitByDelim(String s, String delim) {
+        s += delim;
+        ArrayList<String> split = new ArrayList<>();
+
+        int off = 0;
+        int next = 0;
+        while ((next = s.indexOf(delim, off)) != -1) {
+            split.add(s.substring(off, next));
+            off = next + 1;
+        }
+
+        return split;
     }
 }

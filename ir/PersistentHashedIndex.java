@@ -325,37 +325,28 @@ public class PersistentHashedIndex implements Index {
         }
 
         try {
-            dataFile.seek(entry.start);
-
             String postingsList = readData(entry.start, entry.size);
 
             /** Parse string */
-            String[] postingsEntries = postingsList.split(":");
+            // String[] postingsEntries = postingsList.split(":");
+            ArrayList<String> postingsEntries = Utils.splitByDelim(postingsList, PostingsList.ENTRY_DELIM);
+
             PostingsList pl = new PostingsList();
-            pl.ensureCapacity(postingsEntries.length);
+            pl.ensureCapacity(postingsEntries.size());
 
-            for (int i = 0; i < postingsEntries.length; i++) {
-                String[] entryData = postingsEntries[i].split(",");
-                int[] intEntryData = new int[entryData.length];
+            for (String e: postingsEntries) {
+                ArrayList<String> entryData = Utils.splitByDelim(e, PostingsEntry.OFFSET_DELIM);
 
-                for (int j = 0; j < entryData.length; j++) {
-                    intEntryData[j] = Integer.parseInt(entryData[j]);
-                }
+                PostingsEntry postingsEntry = new PostingsEntry(Integer.parseInt(entryData.get(0)), Integer.parseInt(entryData.get(1)));
+                postingsEntry.reserveOffsetCapacity(entryData.size());
 
-                PostingsEntry postingsEntry = new PostingsEntry(intEntryData[0], intEntryData[1]);
-                postingsEntry.reserveOffsetCapacity(entryData.length);
-
-                for (int k = 2; k < entryData.length; k++) {
-                    postingsEntry.addPosition(intEntryData[k]);
-                }
+                entryData.stream().skip(2).forEachOrdered(i->{
+                    postingsEntry.addPosition(Integer.parseInt(i));
+                });
                 pl.add(postingsEntry);
             }
 
             return pl;
-        } catch (IOException e) {
-            System.out.println(hash);
-            System.out.println(entry.start);
-            e.printStackTrace();
         } catch (NumberFormatException ex) {
             ex.printStackTrace();
         }

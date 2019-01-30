@@ -16,6 +16,7 @@ import java.lang.StringBuilder;
 
 public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
 
+    public static final String OFFSET_DELIM = ",";
     public int docID;
     public double score = 0;
     private ArrayList<Integer> positionList = new ArrayList<>();
@@ -56,11 +57,11 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
         StringBuilder sb = new StringBuilder();
 
         sb.append(docID);
-        sb.append(",");
+        sb.append(OFFSET_DELIM);
 
         for (int offset: positionList) {
             sb.append(offset);
-            sb.append(",");
+            sb.append(OFFSET_DELIM);
         }
 
         sb.setLength(sb.length() - 1);
