@@ -12,9 +12,6 @@ import java.util.zip.DataFormatException;
 import java.io.File;
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.util.Iterator;
-import java.util.concurrent.TimeUnit;
-import java.nio.charset.Charset;
 
 public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
@@ -36,141 +33,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
     public PersistentScalableHashedIndex() {
         super();
-    }
-
-    /**
-     * Writes data to the data file at a specified place.
-     *
-     * @return The number of bytes written.
-     */
-    int writeData(RandomAccessFile file, String dataString, long ptr) {
-        try {
-            file.seek(ptr);
-            byte[] data = dataString.getBytes("UTF-8");
-            file.write(data);
-            return data.length;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return -1;
-        }
-    }
-
-    /**
-     * Reads data from the data file
-     * 
-     * DONE
-     */
-    String readData(RandomAccessFile file, long ptr, int size) {
-        try {
-            file.seek(ptr);
-            byte[] data = new byte[size];
-            file.readFully(data);
-            return new String(data, Charset.forName("UTF-8"));
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    /**
-     * Writes an entry to the dictionary hash table file.
-     * 
-     * DONE
-     *
-     * @param entry The key of this entry is assumed to have a fixed length
-     * 
-     * @param ptr   The place in the dictionary file to store the entry
-     */
-    void writeEntry(RandomAccessFile file, Entry entry, long ptr) {
-        ptr = ptr * (long) ENTRY_SIZE;
-        outBuffer.putLong(0, entry.start);
-        outBuffer.putInt(8, entry.size);
-        outBuffer.putInt(12, entry.shash);
-
-        try {
-            file.seek(ptr);
-            file.write(outBuffer.array());
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.err.println(ptr);
-            System.err.println(entry);
-        }
-    }
-
-    /**
-     * Reads an entry from the dictionary file.
-     * 
-     * DONE
-     *
-     * @param ptr The place in the dictionary file where to start reading.
-     */
-    Entry readEntry(RandomAccessFile file, long ptr) throws DataFormatException {
-        ptr = ptr * (long) ENTRY_SIZE;
-        byte[] bytes = new byte[ENTRY_SIZE];
-
-        try {
-            file.seek(ptr);
-            file.readFully(bytes);
-            inBuffer.put(bytes, 0, bytes.length);
-            inBuffer.flip();
-            long pos = inBuffer.getLong(0);
-            int size = inBuffer.getInt(8);
-            int shash = inBuffer.getInt(12);
-
-            if (pos == 0L && size == 0) {
-                throw new DataFormatException("Hash at location" + ptr + "does not exist.");
-            }
-
-            return new Entry(pos, size, shash);
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (NumberFormatException ex) {
-            ex.printStackTrace();
-        }
-        return null;
-    }
-
-    private void writeIndexKeys(HashMap<Integer, Integer> indexKeys, String idx) {
-        try {
-            FileOutputStream fout = new FileOutputStream(INDEXDIR + "/indexKeys" + idx);
-
-            ByteBuffer buffer = ByteBuffer.allocate(indexKeys.size() * 4 * 2);
-
-            for (Map.Entry<Integer, Integer> entry : indexKeys.entrySet()) { // Invert
-                buffer.putInt(entry.getValue());
-                buffer.putInt(entry.getKey());
-            }
-            buffer.flip();
-            fout.write(buffer.array());
-            fout.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private HashMap<Integer, Integer> readIndexKeys(String idx) {
-        try {
-            RandomAccessFile file = new RandomAccessFile(INDEXDIR + "/indexKeys" + idx, "rw");
-
-            byte[] bytes = new byte[(int) file.length()];
-            file.readFully(bytes);
-
-            ByteBuffer buffer = ByteBuffer.allocate(bytes.length);
-            buffer.put(bytes);
-            buffer.flip();
-
-            HashMap<Integer, Integer> indexKeys = new HashMap<>();
-
-            for (int i = 0; i < bytes.length; i += 8)
-                indexKeys.put(buffer.getInt(i), buffer.getInt(i + 4));
-
-            file.close();
-            return indexKeys;
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
     }
 
     private void writePartialTokens(HashMap<Integer, Integer> indexKeys, String idx) {
@@ -294,7 +156,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             // System.err.println(entry.getKey());
         }
 
-        writeIndexKeys(dictionary, Integer.toString(noDataFiles - 1));
         writePartialTokens(writtenTokens, Integer.toString(noDataFiles - 1));
 
         System.err.println("Written partial index " + (noDataFiles-1) + " to file");
@@ -361,12 +222,9 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         }
 
         /** Read index and data files */
-        // HashMap<Integer, Integer> indexKeys1 = readIndexKeys(currentMergedFile);
-        // HashMap<Integer, Integer> indexKeys2 = readIndexKeys(idx2String);
         HashMap<Integer, Integer> indexKeys1 = readPartialTokens(currentMergedFile);
         HashMap<Integer, Integer> indexKeys2 = readPartialTokens(idx2String);
         HashMap<Integer, Integer> dict = new HashMap<>();
-        HashMap<Integer, Integer> reverseDict = new HashMap<>();
 
         HashMap<Integer, Integer> mergedTokenIndex = new HashMap<>();
 
@@ -399,7 +257,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                             continue;
                         }
                         dict.put(hash1, id1);
-                        reverseDict.put(id1, hash1);
                         mergedTokenIndex.put(id1, hash1);
                         break;
                     }
@@ -421,7 +278,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                             continue;
                         }
                         dict.put(hash1, id1);
-                        reverseDict.put(id1, hash1);
                         mergedTokenIndex.put(id1, hash1);
                         break;
                     }
@@ -434,7 +290,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
             /** Write the rest of entries from file2 to merged */
             for (int id2 : indexKeys2.keySet()) {
-                if (!reverseDict.containsKey(id2)) {
+                if (!mergedTokenIndex.containsKey(id2)) {
                     int hash2 = indexKeys2.get(id2);
                     Entry entry2 = readEntry(index2, hash2);
                     String d2 = readData(data2, entry2.start, entry2.size);
@@ -449,7 +305,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                             continue;
                         }
                         dict.put(hash2, id2);
-                        reverseDict.put(id2, hash2);
                         mergedTokenIndex.put(id2, hash2);
                         break;
                     }
@@ -460,7 +315,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             }
 
             /** Save the new index */
-            writeIndexKeys(dict, mergedName);
             writePartialTokens(mergedTokenIndex, mergedName);
 
             /** Prepare for next sorting */
@@ -576,7 +430,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             dictionaryFile.close();
 
             /** Delete last index file */
-            File file = new File(INDEXDIR + "/indexKeys" + currentMergedFile);
+            File file = new File(INDEXDIR + "/partialTokens" + currentMergedFile);
             file.delete();
 
             /** Rename files */
