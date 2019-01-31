@@ -57,7 +57,7 @@ public class Searcher {
                 String token = query.queryterm.get(0).term;
 
                 PostingsList list = index.getPostings(token);
-                
+
                 return list;
             }
         } catch (IllegalArgumentException e) {
@@ -67,6 +67,13 @@ public class Searcher {
 
     }
 
+    /**
+     * Computes the results of a phrase query
+     * 
+     * @param query The query to process
+     * 
+     * @return A PostingsList with the results
+     */
     private PostingsList getPhraseQuery(Query query) {
         PostingsList postingsLists = getIntersectionQuery(query);
 
@@ -85,23 +92,33 @@ public class Searcher {
         return getRecursivePhrase(p1, orderPostingsList);
     }
 
+    /**
+     * Finds the postings entries corresponding to the docIDs in `postingsList`.
+     * 
+     * @param query        The tokens to fetch postings entries for
+     * @param postingsList A list of docIDs to find postingsentries for
+     * 
+     * @return An ArrayList of PostingsLists with postings entries for each token in
+     *         `query` and docID in `postingsList`.
+     */
     private ArrayList<PostingsList> getOrderedPostingsLists(Query query, PostingsList postingsList) {
 
+        /** Allocate return variable */
         ArrayList<PostingsList> ret = new ArrayList<>();
         for (int i = 0; i < query.queryterm.size(); i++) {
             ret.add(new PostingsList());
         }
 
+        /** Loop over tokens */
         for (int i = 0; i < query.queryterm.size(); i++) {
             String token = query.queryterm.get(i).term;
 
             int k = 0;
 
+            /** Loop over docIDs */
             PostingsList tokenList = index.getPostings(token);
             for (int j = 0; j < postingsList.size(); j++) {
                 PostingsEntry entry = postingsList.get(j);
-
-                
 
                 // Find its original entry
                 for (; k < tokenList.size(); k++) {
@@ -109,7 +126,7 @@ public class Searcher {
                         ret.get(i).add(tokenList.get(k));
                         break;
                     }
-                } 
+                }
             }
         }
         return ret;
@@ -206,9 +223,11 @@ public class Searcher {
 
     /**
      * Retrieves the intersection query for the given query
+     * 
      * @param query The query containing tokens
      * @return A PostingsList with the matches
-     * @throws IllegalArgumentException When a token in the query does not exist in the index.
+     * @throws IllegalArgumentException When a token in the query does not exist in
+     *                                  the index.
      */
     private PostingsList getIntersectionQuery(Query query) throws IllegalArgumentException {
 
@@ -264,6 +283,8 @@ public class Searcher {
      * @param query The query
      * 
      * @return An ArrayList of PostingsLists
+     * 
+     * @throws IllegalArgumentException When a token does not exist in the index
      */
     private ArrayList<PhraseToken> getPostingsLists(Query query) throws IllegalArgumentException {
         ArrayList<PhraseToken> postingsLists = new ArrayList<>();
@@ -276,7 +297,7 @@ public class Searcher {
 
             // If one term does not exist, whole intersection query fails
             if (tokenList != null)
-                postingsLists.add(new PhraseToken(token, i,tokenList));
+                postingsLists.add(new PhraseToken(token, i, tokenList));
             else
                 throw new IllegalArgumentException("Token " + token + " has no matches");
         }

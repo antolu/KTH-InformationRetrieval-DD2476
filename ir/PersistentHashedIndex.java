@@ -125,7 +125,7 @@ public class PersistentHashedIndex implements Index {
         Utils.initialize();
     }
 
-        /**
+    /**
      * Writes data to the data file at a specified place.
      *
      * @return The number of bytes written.
@@ -144,8 +144,6 @@ public class PersistentHashedIndex implements Index {
 
     /**
      * Reads data from the data file
-     * 
-     * DONE
      */
     protected String readData(RandomAccessFile file, long ptr, int size) {
         try {
@@ -163,11 +161,8 @@ public class PersistentHashedIndex implements Index {
     //
     // Reading and writing to the dictionary file.
 
-
     /**
      * Writes an entry to the dictionary hash table file.
-     * 
-     * DONE
      *
      * @param entry The key of this entry is assumed to have a fixed length
      * 
@@ -191,8 +186,6 @@ public class PersistentHashedIndex implements Index {
 
     /**
      * Reads an entry from the dictionary file.
-     * 
-     * DONE
      *
      * @param ptr The place in the dictionary file where to start reading.
      */
@@ -226,8 +219,6 @@ public class PersistentHashedIndex implements Index {
 
     /**
      * Writes the document names and document lengths to file.
-     * 
-     * DONE
      *
      * @throws IOException { exception_description }
      */
@@ -244,8 +235,6 @@ public class PersistentHashedIndex implements Index {
     /**
      * Reads the document names and document lengths from file, and put them in the
      * appropriate data structures.
-     * 
-     * DONE
      *
      * @throws IOException { exception_description }
      */
@@ -265,8 +254,6 @@ public class PersistentHashedIndex implements Index {
 
     /**
      * Write the index to files.
-     * 
-     * DONE
      */
     public void writeIndex() {
         HashMap<Integer, Long> dictionary = new HashMap<Integer, Long>();
@@ -275,7 +262,7 @@ public class PersistentHashedIndex implements Index {
             writeDocInfo();
 
             // Write the dictionary and the postings list
-            for (Map.Entry<String, PostingsList> entry: index.entrySet()) {
+            for (Map.Entry<String, PostingsList> entry : index.entrySet()) {
 
                 int hash = Utils.hash(entry.getKey());
 
@@ -298,7 +285,7 @@ public class PersistentHashedIndex implements Index {
             e.printStackTrace();
         }
         index.clear();
-        System.err.println(collisions + " collisions.");
+        System.err.println("[INFO]" + collisions + " collisions.");
     }
 
     // ==================================================================
@@ -306,8 +293,6 @@ public class PersistentHashedIndex implements Index {
     /**
      * Returns the postings for a specific term, or null if the term is not in the
      * index.
-     * 
-     * DONE
      */
     public PostingsList getPostings(String token) {
         int hash = Utils.hash(token);
@@ -337,13 +322,14 @@ public class PersistentHashedIndex implements Index {
             PostingsList pl = new PostingsList();
             pl.ensureCapacity(postingsEntries.size());
 
-            for (String e: postingsEntries) {
+            for (String e : postingsEntries) {
                 ArrayList<String> entryData = Utils.splitByDelim(e, PostingsEntry.OFFSET_DELIM);
 
-                PostingsEntry postingsEntry = new PostingsEntry(Integer.parseInt(entryData.get(0)), Integer.parseInt(entryData.get(1)));
+                PostingsEntry postingsEntry = new PostingsEntry(Integer.parseInt(entryData.get(0)),
+                        Integer.parseInt(entryData.get(1)));
                 postingsEntry.reserveOffsetCapacity(entryData.size());
 
-                entryData.stream().skip(2).forEachOrdered(i->{
+                entryData.stream().skip(2).forEachOrdered(i -> {
                     postingsEntry.addPosition(Integer.parseInt(i));
                 });
                 pl.add(postingsEntry);
@@ -359,8 +345,6 @@ public class PersistentHashedIndex implements Index {
 
     /**
      * Inserts this token in the main-memory hashtable.
-     * 
-     * DONE
      */
     public void insert(String token, int docID, int offset) {
         // A PostingsList does not exist
@@ -386,13 +370,11 @@ public class PersistentHashedIndex implements Index {
 
     /**
      * Write index to file after indexing is done.
-     * 
-     * DONE
      */
     public void cleanup() {
-        System.err.println(index.keySet().size() + " unique words");
-        System.err.print("Writing index to disk...");
+        System.err.println("[INFO]" + index.keySet().size() + " unique words");
+        System.err.print("[INDEX] Writing index to disk...");
         writeIndex();
-        System.err.println("done!");
+        System.err.println("[SUCCESS] Done!");
     }
 }
