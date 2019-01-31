@@ -14,6 +14,8 @@ import java.lang.StringBuilder;
 
 public class PostingsList extends ArrayList<PostingsEntry> implements Comparable<PostingsList> {
 
+    public static final String ENTRY_DELIM = ":";
+
     public PostingsList() {
         super();
     }
@@ -29,7 +31,7 @@ public class PostingsList extends ArrayList<PostingsEntry> implements Comparable
 
         for (PostingsEntry pe: this) {
             sb.append(pe.toString());
-            sb.append(":");
+            sb.append(ENTRY_DELIM);
         }
 
         /** Remove overflowing semicolon */

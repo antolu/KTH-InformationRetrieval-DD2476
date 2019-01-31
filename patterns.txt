@@ -55,3 +55,11 @@ http(s)?:\/\/.*
 
 // Twenty-four seven
 \d+\/\d+
+
+// money/blah
+[a-zA-Z]+(?=(\/\w+))
+(?<=\/)[a-zA-Z]+
+
+// 250,000-selling
+[\d\,]+(?=\-)
+(?<=\-)[a-zA-Z]+

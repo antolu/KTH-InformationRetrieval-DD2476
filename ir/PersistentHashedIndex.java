@@ -30,7 +30,7 @@ import java.nio.ByteBuffer;
 public class PersistentHashedIndex implements Index {
 
     /** The directory where the persistent index files are stored. */
-    public static final String INDEXDIR = "../index";
+    public static final String INDEXDIR = "index";
 
     /** The dictionary file name */
     public static final String DICTIONARY_FNAME = "dictionary";
@@ -45,13 +45,14 @@ public class PersistentHashedIndex implements Index {
     public static final String DOCINFO_FNAME = "docInfo";
 
     /** The dictionary hash table on disk can fit this many entries. */
-    public static final long TABLESIZE = 611953L;
+    public static final long TABLESIZE = 3509827L;
+    // public static final long TABLESIZE = 611953L;
 
     /** Byte size of a long */
-    private static final int ENTRY_SIZE = 16;
+    protected static final int ENTRY_SIZE = 16;
 
-    private static final ByteBuffer inBuffer = ByteBuffer.allocate(ENTRY_SIZE);
-    private static final ByteBuffer outBuffer = ByteBuffer.allocate(ENTRY_SIZE);
+    protected static final ByteBuffer inBuffer = ByteBuffer.allocate(ENTRY_SIZE);
+    protected static final ByteBuffer outBuffer = ByteBuffer.allocate(ENTRY_SIZE);
 
     /** The dictionary hash table is stored in this file. */
     RandomAccessFile dictionaryFile;
@@ -62,10 +63,14 @@ public class PersistentHashedIndex implements Index {
     /** Pointer to the first free memory cell in the data file. */
     long free = 0L;
 
-    HashMap<Integer, Long> dictionary = new HashMap<Integer, Long>();
+    protected int collisions = 0;
+
+    // HashMap<Integer, Long> dictionary = new HashMap<Integer, Long>();
 
     /** The cache as a main-memory hash map. */
     HashMap<String, PostingsList> index = new HashMap<String, PostingsList>();
+    HashMap<String, Integer> tokenIndex = new HashMap<>();
+    protected int noUniqueTokens = 0;
 
     // ===================================================================
 
@@ -85,6 +90,13 @@ public class PersistentHashedIndex implements Index {
         public Entry(long start, int size) {
             this.start = start;
             this.size = size;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof Entry))
+                return false;
+            return ((Entry) obj).shash == this.shash;
         }
     }
 
@@ -109,18 +121,20 @@ public class PersistentHashedIndex implements Index {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        Utils.initialize();
     }
 
-    /**
+        /**
      * Writes data to the data file at a specified place.
      *
      * @return The number of bytes written.
      */
-    int writeData(String dataString, long ptr) {
+    protected int writeData(RandomAccessFile file, String dataString, long ptr) {
         try {
-            dataFile.seek(ptr);
-            byte[] data = dataString.getBytes();
-            dataFile.write(data);
+            file.seek(ptr);
+            byte[] data = dataString.getBytes("UTF-8");
+            file.write(data);
             return data.length;
         } catch (IOException e) {
             e.printStackTrace();
@@ -133,12 +147,12 @@ public class PersistentHashedIndex implements Index {
      * 
      * DONE
      */
-    String readData(long ptr, int size) {
+    protected String readData(RandomAccessFile file, long ptr, int size) {
         try {
-            dataFile.seek(ptr);
+            file.seek(ptr);
             byte[] data = new byte[size];
-            dataFile.readFully(data);
-            return new String(data);
+            file.readFully(data);
+            return new String(data, Charset.forName("UTF-8"));
         } catch (IOException e) {
             e.printStackTrace();
             return null;
@@ -149,24 +163,25 @@ public class PersistentHashedIndex implements Index {
     //
     // Reading and writing to the dictionary file.
 
-    /** 
+
+    /**
      * Writes an entry to the dictionary hash table file.
      * 
      * DONE
      *
      * @param entry The key of this entry is assumed to have a fixed length
      * 
-     * @param ptr The place in the dictionary file to store the entry
+     * @param ptr   The place in the dictionary file to store the entry
      */
-    void writeEntry(Entry entry, long ptr) {
+    protected void writeEntry(RandomAccessFile file, Entry entry, long ptr) {
         ptr = ptr * (long) ENTRY_SIZE;
         outBuffer.putLong(0, entry.start);
         outBuffer.putInt(8, entry.size);
         outBuffer.putInt(12, entry.shash);
 
         try {
-            dictionaryFile.seek(ptr);
-            dictionaryFile.write(outBuffer.array());
+            file.seek(ptr);
+            file.write(outBuffer.array());
         } catch (IOException e) {
             e.printStackTrace();
             System.err.println(ptr);
@@ -181,13 +196,13 @@ public class PersistentHashedIndex implements Index {
      *
      * @param ptr The place in the dictionary file where to start reading.
      */
-    Entry readEntry(long ptr) throws DataFormatException {
+    protected Entry readEntry(RandomAccessFile file, long ptr) throws DataFormatException {
         ptr = ptr * (long) ENTRY_SIZE;
         byte[] bytes = new byte[ENTRY_SIZE];
 
         try {
-            dictionaryFile.seek(ptr);
-            dictionaryFile.readFully(bytes);
+            file.seek(ptr);
+            file.readFully(bytes);
             inBuffer.put(bytes, 0, bytes.length);
             inBuffer.flip();
             long pos = inBuffer.getLong(0);
@@ -216,7 +231,7 @@ public class PersistentHashedIndex implements Index {
      *
      * @throws IOException { exception_description }
      */
-    private void writeDocInfo() throws IOException {
+    protected void writeDocInfo() throws IOException {
         FileOutputStream fout = new FileOutputStream(INDEXDIR + "/docInfo");
         for (Map.Entry<Integer, String> entry : docNames.entrySet()) {
             Integer key = entry.getKey();
@@ -234,7 +249,7 @@ public class PersistentHashedIndex implements Index {
      *
      * @throws IOException { exception_description }
      */
-    private void readDocInfo() throws IOException {
+    protected void readDocInfo() throws IOException {
         File file = new File(INDEXDIR + "/docInfo");
         FileReader freader = new FileReader(file);
         try (BufferedReader br = new BufferedReader(freader)) {
@@ -254,7 +269,7 @@ public class PersistentHashedIndex implements Index {
      * DONE
      */
     public void writeIndex() {
-        int collisions = 0;
+        HashMap<Integer, Long> dictionary = new HashMap<Integer, Long>();
         try {
             // Write the 'docNames' and 'docLengths' hash maps to a file
             writeDocInfo();
@@ -264,7 +279,7 @@ public class PersistentHashedIndex implements Index {
 
                 int hash = Utils.hash(entry.getKey());
 
-                int size = writeData(entry.getValue().toString(), free);
+                int size = writeData(dataFile, entry.getValue().toString(), free);
                 for (;;) {
                     if (dictionary.containsKey(hash)) {
                         hash++;
@@ -275,13 +290,14 @@ public class PersistentHashedIndex implements Index {
                     break;
                 }
                 int shash = Utils.reverseHash(entry.getKey());
-                writeEntry(new Entry(free, size, shash), hash);
+                writeEntry(dictionaryFile, new Entry(free, size, shash), hash);
                 free += size;
                 // System.err.println(entry.getKey());
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+        index.clear();
         System.err.println(collisions + " collisions.");
     }
 
@@ -301,7 +317,7 @@ public class PersistentHashedIndex implements Index {
 
         for (;;) {
             try {
-                entry = readEntry(hash++);
+                entry = readEntry(dictionaryFile, hash++);
             } catch (DataFormatException e) {
                 return null;
             }
@@ -312,37 +328,28 @@ public class PersistentHashedIndex implements Index {
         }
 
         try {
-            dataFile.seek(entry.start);
-
-            String postingsList = readData(entry.start, entry.size);
+            String postingsList = readData(dataFile, entry.start, entry.size);
 
             /** Parse string */
-            String[] postingsEntries = postingsList.split(":");
+            // String[] postingsEntries = postingsList.split(":");
+            ArrayList<String> postingsEntries = Utils.splitByDelim(postingsList, PostingsList.ENTRY_DELIM);
+
             PostingsList pl = new PostingsList();
-            pl.ensureCapacity(postingsEntries.length);
+            pl.ensureCapacity(postingsEntries.size());
 
-            for (int i = 0; i < postingsEntries.length; i++) {
-                String[] entryData = postingsEntries[i].split(",");
-                int[] intEntryData = new int[entryData.length];
+            for (String e: postingsEntries) {
+                ArrayList<String> entryData = Utils.splitByDelim(e, PostingsEntry.OFFSET_DELIM);
 
-                for (int j = 0; j < entryData.length; j++) {
-                    intEntryData[j] = Integer.parseInt(entryData[j]);
-                }
+                PostingsEntry postingsEntry = new PostingsEntry(Integer.parseInt(entryData.get(0)), Integer.parseInt(entryData.get(1)));
+                postingsEntry.reserveOffsetCapacity(entryData.size());
 
-                PostingsEntry postingsEntry = new PostingsEntry(intEntryData[0], intEntryData[1]);
-                postingsEntry.reserveOffsetCapacity(entryData.length);
-
-                for (int k = 2; k < entryData.length; k++) {
-                    postingsEntry.addPosition(intEntryData[k]);
-                }
+                entryData.stream().skip(2).forEachOrdered(i->{
+                    postingsEntry.addPosition(Integer.parseInt(i));
+                });
                 pl.add(postingsEntry);
             }
 
             return pl;
-        } catch (IOException e) {
-            System.out.println(hash);
-            System.out.println(entry.start);
-            e.printStackTrace();
         } catch (NumberFormatException ex) {
             ex.printStackTrace();
         }
@@ -372,6 +379,9 @@ public class PersistentHashedIndex implements Index {
             else if (list.get(list.size() - 1).docID == docID)
                 list.get(list.size() - 1).addPosition(offset);
         }
+
+        if (!tokenIndex.containsKey(token))
+            tokenIndex.put(token, noUniqueTokens++);
     }
 
     /**
