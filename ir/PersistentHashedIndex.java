@@ -45,8 +45,8 @@ public class PersistentHashedIndex implements Index {
     public static final String DOCINFO_FNAME = "docInfo";
 
     /** The dictionary hash table on disk can fit this many entries. */
-    // public static final long TABLESIZE = 3509827L;
-    public static final long TABLESIZE = 611953L;
+    public static final long TABLESIZE = 3509827L;
+    // public static final long TABLESIZE = 611953L;
 
     /** Byte size of a long */
     protected static final int ENTRY_SIZE = 16;
@@ -69,6 +69,8 @@ public class PersistentHashedIndex implements Index {
 
     /** The cache as a main-memory hash map. */
     HashMap<String, PostingsList> index = new HashMap<String, PostingsList>();
+    HashMap<String, Integer> tokenIndex = new HashMap<>();
+    protected int noUniqueTokens = 0;
 
     // ===================================================================
 
@@ -376,6 +378,9 @@ public class PersistentHashedIndex implements Index {
             else if (list.get(list.size() - 1).docID == docID)
                 list.get(list.size() - 1).addPosition(offset);
         }
+
+        if (!tokenIndex.containsKey(token))
+            tokenIndex.put(token, noUniqueTokens++);
     }
 
     /**

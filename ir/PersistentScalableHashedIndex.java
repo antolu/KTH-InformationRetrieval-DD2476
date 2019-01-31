@@ -173,6 +173,49 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         }
     }
 
+    private void writePartialTokens(HashMap<Integer, Integer> indexKeys, String idx) {
+        try {
+            FileOutputStream fout = new FileOutputStream(INDEXDIR + "/partialTokens" + idx);
+
+            ByteBuffer buffer = ByteBuffer.allocate(indexKeys.size() * 4 * 2);
+
+            for (Map.Entry<Integer, Integer> entry : indexKeys.entrySet()) { // Invert
+                buffer.putInt(entry.getKey());
+                buffer.putInt(entry.getValue());
+            }
+            buffer.flip();
+            fout.write(buffer.array());
+            fout.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private HashMap<Integer, Integer> readPartialTokens(String idx) {
+        try {
+            RandomAccessFile file = new RandomAccessFile(INDEXDIR + "/partialTokens" + idx, "rw");
+
+            byte[] bytes = new byte[(int) file.length()];
+            file.readFully(bytes);
+
+            ByteBuffer buffer = ByteBuffer.allocate(bytes.length);
+            buffer.put(bytes);
+            buffer.flip();
+
+            HashMap<Integer, Integer> indexKeys = new HashMap<>();
+
+            for (int i = 0; i < bytes.length; i += 8)
+                indexKeys.put(buffer.getInt(i), buffer.getInt(i + 4));
+
+            file.close();
+            return indexKeys;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     private void writePartialDocInfo(String app, HashMap<Integer, String> docNames,
             HashMap<Integer, Integer> docLengths) {
         try {
@@ -227,6 +270,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         }
 
         HashMap<Integer, Integer> dictionary = new HashMap<>();
+        HashMap<Integer, Integer> writtenTokens = new HashMap<>();
 
         // Write the dictionary and the postings list
         for (Map.Entry<String, PostingsList> entry : index.entrySet()) {
@@ -242,6 +286,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                     continue;
                 }
                 dictionary.put(hash, Utils.improvedHash(entry.getKey()));
+                writtenTokens.put(tokenIndex.get(entry.getKey()), hash);
                 break;
             }
             writeEntry(currentDictionaryFile, new Entry(free, size, shash), hash);
@@ -250,6 +295,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         }
 
         writeIndexKeys(dictionary, Integer.toString(noDataFiles - 1));
+        writePartialTokens(writtenTokens, Integer.toString(noDataFiles - 1));
 
         System.err.println("Written partial index " + (noDataFiles-1) + " to file");
         try {
@@ -315,21 +361,25 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         }
 
         /** Read index and data files */
-        HashMap<Integer, Integer> indexKeys1 = readIndexKeys(currentMergedFile);
-        HashMap<Integer, Integer> indexKeys2 = readIndexKeys(idx2String);
+        // HashMap<Integer, Integer> indexKeys1 = readIndexKeys(currentMergedFile);
+        // HashMap<Integer, Integer> indexKeys2 = readIndexKeys(idx2String);
+        HashMap<Integer, Integer> indexKeys1 = readPartialTokens(currentMergedFile);
+        HashMap<Integer, Integer> indexKeys2 = readPartialTokens(idx2String);
         HashMap<Integer, Integer> dict = new HashMap<>();
         HashMap<Integer, Integer> reverseDict = new HashMap<>();
+
+        HashMap<Integer, Integer> mergedTokenIndex = new HashMap<>();
 
         try {
             RandomAccessFile mergedFile = new RandomAccessFile(INDEXDIR + "/" + DATA_FNAME + mergedName, "rw");
             RandomAccessFile mergedDict = new RandomAccessFile(INDEXDIR + "/" + DICTIONARY_FNAME + mergedName, "rw");
             long ptr = 0L;
 
-            for (int origHash1 : indexKeys1.keySet()) {
-                if (indexKeys2.containsKey(origHash1)) { // Both files have the same token, merge lists
+            for (int id1 : indexKeys1.keySet()) {
+                if (indexKeys2.containsKey(id1)) { // Both files have the same token, merge lists
                     /** Get their respective entries in each dict */
-                    int hash1 = indexKeys1.get(origHash1);
-                    int hash2 = indexKeys2.get(origHash1);
+                    int hash1 = indexKeys1.get(id1);
+                    int hash2 = indexKeys2.get(id1);
 
                     Entry entry1 = readEntry(index1, hash1);
                     Entry entry2 = readEntry(index2, hash2);
@@ -348,15 +398,16 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                             collisions++;
                             continue;
                         }
-                        dict.put(hash1, origHash1);
-                        reverseDict.put(origHash1, hash1);
+                        dict.put(hash1, id1);
+                        reverseDict.put(id1, hash1);
+                        mergedTokenIndex.put(id1, hash1);
                         break;
                     }
 
                     writeEntry(mergedDict, new Entry(ptr, size, entry1.shash), hash1);
                     ptr += size;
                 } else { // Token from file1 nexiste in file2, only write data from file2
-                    int hash1 = indexKeys1.get(origHash1);
+                    int hash1 = indexKeys1.get(id1);
                     Entry entry1 = readEntry(index1, hash1);
                     String d1 = readData(data1, entry1.start, entry1.size);
                     
@@ -369,8 +420,9 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                             collisions++;
                             continue;
                         }
-                        dict.put(hash1, origHash1);
-                        reverseDict.put(origHash1, hash1);
+                        dict.put(hash1, id1);
+                        reverseDict.put(id1, hash1);
+                        mergedTokenIndex.put(id1, hash1);
                         break;
                     }
 
@@ -381,9 +433,9 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             }
 
             /** Write the rest of entries from file2 to merged */
-            for (int origHash2 : indexKeys2.keySet()) {
-                if (!reverseDict.containsKey(origHash2)) {
-                    int hash2 = indexKeys2.get(origHash2);
+            for (int id2 : indexKeys2.keySet()) {
+                if (!reverseDict.containsKey(id2)) {
+                    int hash2 = indexKeys2.get(id2);
                     Entry entry2 = readEntry(index2, hash2);
                     String d2 = readData(data2, entry2.start, entry2.size);
                     
@@ -396,8 +448,9 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
                             collisions++;
                             continue;
                         }
-                        dict.put(hash2, origHash2);
-                        reverseDict.put(origHash2, hash2);
+                        dict.put(hash2, id2);
+                        reverseDict.put(id2, hash2);
+                        mergedTokenIndex.put(id2, hash2);
                         break;
                     }
 
@@ -408,6 +461,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
             /** Save the new index */
             writeIndexKeys(dict, mergedName);
+            writePartialTokens(mergedTokenIndex, mergedName);
 
             /** Prepare for next sorting */
             dataFiles.add(0, mergedFile);
@@ -421,7 +475,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
             String[] toDelete = { DATA_FNAME + currentMergedFile, DATA_FNAME + idx2String,
                     DICTIONARY_FNAME + currentMergedFile, DICTIONARY_FNAME + idx2String, "docInfo" + currentMergedFile,
-                    "docInfo" + idx2String, "indexKeys" + currentMergedFile, "indexKeys" + idx2String };
+                    "docInfo" + idx2String, "partialTokens" + currentMergedFile, "partialTokens" + idx2String };
             for (String s : toDelete) {
                 File file = new File(INDEXDIR + "/" + s);
                 file.delete();
@@ -464,6 +518,9 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             else if (list.get(list.size() - 1).docID == docID)
                 list.get(list.size() - 1).addPosition(offset);
         }
+
+        if (!tokenIndex.containsKey(token))
+            tokenIndex.put(token, noUniqueTokens++);
     }
 
     @Override
@@ -487,7 +544,10 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         }
 
         System.err.println("Running final disk merges...");
-        while (dataFiles.size() > 1) {
+        while (true) {
+            if (dataFiles.size() < 2) 
+                break;
+
             RandomAccessFile index1 = dictionaryFiles.get(0);
             RandomAccessFile index2 = dictionaryFiles.get(1);
             dictionaryFiles.remove(0);
@@ -501,6 +561,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             mergeIndexes(processedFiles++, index1, index2, data1, data2);
         }
 
+        System.err.println("Number of unique tokens: " + noUniqueTokens);
         System.err.println(collisions + " collisions.");
 
         System.err.println("Moving files into place...");
