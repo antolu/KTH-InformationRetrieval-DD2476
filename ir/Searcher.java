@@ -9,9 +9,11 @@ package ir;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.NoSuchElementException;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Searches an index for results of a query.
@@ -23,8 +25,6 @@ public class Searcher {
 
     /** The k-gram index to be searched by this Searcher */
     KGramIndex kgIndex;
-
-    private static HashSet<Integer> commonIndices = new HashSet<>();
 
     /** Constructor */
     public Searcher(Index index, KGramIndex kgIndex) {
@@ -49,7 +49,7 @@ public class Searcher {
             }
 
             if (queryType == QueryType.INTERSECTION_QUERY) {
-                return getIntersectionQuery(query);
+                return getIntersectionQuery(query, null);
             } else if (queryType == QueryType.PHRASE_QUERY) {
                 return getPhraseQuery(query);
             } else {
@@ -75,15 +75,16 @@ public class Searcher {
      * @return A PostingsList with the results
      */
     private PostingsList getPhraseQuery(Query query) {
-        PostingsList postingsLists = getIntersectionQuery(query);
+        ArrayList<LinkedHashMap<Integer, Integer>> indexes = new ArrayList<>();
+        for (int i = 0; i < query.queryterm.size(); i++) {
+            indexes.add(new LinkedHashMap<Integer, Integer>());
+        }
 
-        ArrayList<PostingsList> orderPostingsList = getOrderedPostingsLists(query, postingsLists);
+        getIntersectionQuery(query, indexes);
 
-        // Collections.sort(postingsLists);
+        ArrayList<PostingsList> orderPostingsList = getLists(query, indexes);
+
         Collections.reverse(orderPostingsList);
-
-        // System.out.println(orderPostingsList.size());
-        // System.out.println(orderPostingsList.get(0).size());
 
         PostingsList p1 = orderPostingsList.get(orderPostingsList.size() - 1);
 
@@ -101,7 +102,7 @@ public class Searcher {
      * @return An ArrayList of PostingsLists with postings entries for each token in
      *         `query` and docID in `postingsList`.
      */
-    private ArrayList<PostingsList> getOrderedPostingsLists(Query query, PostingsList postingsList) {
+    private ArrayList<PostingsList> getLists(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) {
 
         /** Allocate return variable */
         ArrayList<PostingsList> ret = new ArrayList<>();
@@ -111,22 +112,12 @@ public class Searcher {
 
         /** Loop over tokens */
         for (int i = 0; i < query.queryterm.size(); i++) {
-            String token = query.queryterm.get(i).term;
+            LinkedHashMap<Integer, Integer> tokenIndexes = indexes.get(i);
+            PostingsList list = ret.get(i);
+            PostingsList fullList = index.getPostings(query.queryterm.get(i).term);
 
-            int k = 0;
-
-            /** Loop over docIDs */
-            PostingsList tokenList = index.getPostings(token);
-            for (int j = 0; j < postingsList.size(); j++) {
-                PostingsEntry entry = postingsList.get(j);
-
-                // Find its original entry
-                for (; k < tokenList.size(); k++) {
-                    if (tokenList.get(k).docID == entry.docID) {
-                        ret.get(i).add(tokenList.get(k));
-                        break;
-                    }
-                }
+            for (Map.Entry<Integer, Integer> entry : tokenIndexes.entrySet()) {
+                list.add(fullList.get(entry.getValue()));
             }
         }
         return ret;
@@ -229,12 +220,16 @@ public class Searcher {
      * @throws IllegalArgumentException When a token in the query does not exist in
      *                                  the index.
      */
-    private PostingsList getIntersectionQuery(Query query) throws IllegalArgumentException {
-
-        commonIndices.clear();
+    private PostingsList getIntersectionQuery(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) throws IllegalArgumentException {
 
         ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
         PostingsList intersection;
+
+        if (indexes != null) {
+            for (int i = 0; i < postingsLists.size(); i++) {
+                postingsLists.get(i).indexes = indexes.get(i);
+            }
+        }
 
         Collections.sort(postingsLists, Collections.reverseOrder());
 
@@ -243,6 +238,7 @@ public class Searcher {
         PostingsList p2;
 
         intersection = postingsLists.get(0).postingsList;
+        HashMap<Integer, Integer> intersectionIndexes = new HashMap<>();
 
         int j;
         int k;
@@ -255,23 +251,43 @@ public class Searcher {
             p2 = postingsLists.get(i).postingsList;
             intersection = new PostingsList();
 
-            PostingsEntry docID1 = p1.get(j++);
-            PostingsEntry docID2 = p2.get(k++);
+            PostingsEntry docID1 = p1.get(j);
+            PostingsEntry docID2 = p2.get(k);
 
             try {
                 for (;;) {
                     if (docID1.docID == docID2.docID) {
                         intersection.add(docID1);
-                        docID1 = p1.get(j++);
-                        docID2 = p2.get(k++);
+                        if (indexes != null) {
+                            intersectionIndexes.put(docID1.docID, j);
+                            if (i == 1) {
+                                postingsLists.get(i-1).indexes.put(docID1.docID, j);
+                            }
+                            postingsLists.get(i).indexes.put(docID1.docID, k);
+                        }
+                        docID1 = p1.get(++j);
+                        docID2 = p2.get(++k);
                     } else if (docID1.docID < docID2.docID) {
-                        docID1 = p1.get(j++);
+                        docID1 = p1.get(++j);
                     } else {
-                        docID2 = p2.get(k++);
+                        docID2 = p2.get(++k);
                     }
                 }
             } catch (Exception e) {
                 // Do nothing
+            }
+
+            if (indexes != null) {
+                /** Remove non-relevant indexes */
+                for (int l = 0; l <= i; l++) {
+                    HashMap<Integer, Integer> map = postingsLists.get(i).indexes;
+                    for (int docID : map.keySet()) {
+                        if (!intersectionIndexes.containsKey(docID)) {
+                            map.remove(docID);
+                        }
+                    }
+                }
+                intersectionIndexes.clear();
             }
         }
         return intersection;

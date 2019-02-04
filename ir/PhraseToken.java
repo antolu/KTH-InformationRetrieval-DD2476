@@ -1,9 +1,12 @@
 package ir;
 
+import java.util.LinkedHashMap;
+
 public class PhraseToken implements Comparable<PhraseToken>{
     public String token;
     public int order;
     public PostingsList postingsList;
+    public LinkedHashMap<Integer, Integer> indexes;
 
     public PhraseToken(String token, int order, PostingsList postingsList) {
         this.token = token;
