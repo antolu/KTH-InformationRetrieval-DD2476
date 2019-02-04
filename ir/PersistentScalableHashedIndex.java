@@ -424,6 +424,12 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
     @Override
     public void cleanup() {
+        
+        try {
+            t.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
         System.err.println("[INFO] Writing last partial index to disk...");
         writePartialIndex();
@@ -474,7 +480,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             File docInfoFrom = new File(INDEXDIR + "/" + DOCINFO_FNAME + currentMergedFileID);
             File docInfoTo = new File(INDEXDIR + "/" + DOCINFO_FNAME);
             docInfoFrom.renameTo(docInfoTo);
-            docInfoFrom.delete();
             readDocInfo();
 
             /** Reopen files */
