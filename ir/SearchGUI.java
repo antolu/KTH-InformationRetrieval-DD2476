@@ -129,6 +129,8 @@ public class SearchGUI extends JFrame {
         p.add( resultPane );
 
         docTextView.setFont(resultFont);
+        docTextView.setLineWrap(true);
+        docTextView.setWrapStyleWord(true);
         docTextView.setText("\n  The contents of the document will appear here.");
         p.add(docViewPane);
         setVisible( true );
