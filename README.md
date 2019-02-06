@@ -26,6 +26,7 @@ In a sense phrase query is more strict than intersection query. The phrase `a qu
 ### 1.5
 
 Difficult cases: majors with courses in mathematics. Are we looking for documents about majors in mathematics, or majors with math courses?
+Some documents describe people having a degree in mathematics living in davis, or have a graduate, and know mathematics. Are they relevant?
 
 **Biological_Systems_Engineering.f 2**  
 About graduate program in biological systems, with course in mathematics.
@@ -46,7 +47,7 @@ Course overview. Math course exists. Not about graduate program.
 About economics graduate programme, where mathematics is required (background). 
 
 **Elaine_Kasimatis.f 3**  
-Person with degree in mathematics. 
+\[difficult\] Person with degree in mathematics. 
 
 **Evelyn_Silvia.f 3**  
 Mathematics professor. worked with improving mathematics education at all levels. 
@@ -93,8 +94,8 @@ Welcome email. Info to graduate students about their department contact persons.
 **Wildlife%2C_Fish%2C_and_Conservation_Biology.f 1**  
 Minor in wildlife and conservation biology, part of other majors, like applied mathematics. 
 
-Precision: percentage of returned results which are relevant.  
-Recall: percentage of total relevant results returned.
+Precision: percentage of returned results which are relevant.  "How useful the search results are"
+Recall: percentage of total relevant results returned. "How complete the search results are"
 
 Precision 17/22
 
