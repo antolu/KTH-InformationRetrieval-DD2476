@@ -102,10 +102,59 @@ Recall 17/100
 
 ### 1.6  
 
-Query: ****
+### First query
+`mathematics graduate uc davis`
 
+27 documents, too many to categorize. (too broad query)
+
+### Second query
+`mathematics graduate major uc davis`
+When talking about graduate education, the word major often also comes up, so it may yield narrower results.
+
+#### Documents
+
+Candidate_Statements 0
+Computer_Science 3
+ECE_Course_Reviews 2
+Economics 3
+Events_Calendars 0
+Hydrology 1
+Mathematics 3
+MattHh 3
+PhilipNeustrom 0
+Private_Tutoring 1
+Statistics 3
+Teaching_Assistants 1
+UCD_Honors_and_prizes 0
+UD_Davis_English_Department 0
+University_Departments 0
+What_I_Wish_I_Knew...Before_Coming_to_UC_Davis_Entomology.f 0
+Wildlife%2C_Fish%2C_and_Conservation_Biology.f 0
+
+Precision: 9/17
+Recall: 9/?
+
+
+### Third query
+
+`mathematics math graduate major uc davis`
+Should one look for something related to mathematics, articles tend to use mathematics and maths more interchangeably, thus one can search for both at once in an intersection query.
+
+#### Documents
+
+Computer Science 3
+ECE_Course_Reviews 2
+Economics 3
+Mathematics 3
+MattHh 3
+Private tutoring 1
+Statistics 3
+Teaching Assistants 1
+
+Precision: 1 (9/9)
+Recall: 8/?
 > Why can we not simply set the query to be the entire information need description?  
-Because computers don't understand natural language as humans do. Asking *How do travel from London to Paris via train?* to Google will probably yield very relevant results, in many cases were *trabel*, *London*, *Paris* and *train* are frequent, and not because the search engine understood your query (what you were "asking"). 
+Because computers don't understand natural language as humans do. Asking *How do I travel from London to Paris via train?* to Google will probably yield very relevant results, in many cases were *travel*, *London*, *Paris* and *train* are frequent, and not because the search engine understood your query (what you were "asking"). 
 
 ### 1.7
 PostingsLists saved as
@@ -125,3 +174,7 @@ And each entry is saved as
 ```
 docID!offset1,offset2,offset3
 ```
+
+### 1.8
+
+The reason the query `queen of england` yields 364 (out of 364) matches in intersection query mode, but only 6 (out of 7) in phrase query mode, may be because of how the tokenizer works. Let's say that we have the phrase `queen of<england>` in the document, then the tokenizer may translate this to `queen`, `of`, `<`, `england` and `>`, where queen of england is no longer a contiguous phrase. 
