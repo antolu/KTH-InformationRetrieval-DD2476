@@ -1,0 +1,62 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Debug (Launch) - Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-Persistent",
+            "request": "launch",
+            "cwd" : "${workspaceRoot}",
+            "mainClass": "ir.Engine",
+            "classPaths": ["build"],
+            "args" : [
+                "-d",
+                "davisWiki",
+                "-l",
+                "ir19.gif",
+                "-p",
+                "patterns.txt",
+                "-ni"
+            ]
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-Search Engine",
+            "request": "launch",
+            "cwd" : "${workspaceRoot}",
+            "classPaths": ["build"],
+            "mainClass": "ir.Engine",
+            "args" : [
+                "-d",
+                "davisWiki",
+                "-l",
+                "ir19.gif",
+                "-p",
+                "patterns.txt",
+            ]
+        },
+        {
+            "type": "java",
+            "name": "Debug (Launch)-Guardian index",
+            "request": "launch",
+            "cwd" : "${workspaceRoot}",
+            "mainClass": "ir.Engine",
+            "args" : [
+                "-d",
+                "guardian",
+                "-l",
+                "ir19.gif",
+                "-p",
+                "patterns.txt",
+            ]
+        }
+    ]
+}
