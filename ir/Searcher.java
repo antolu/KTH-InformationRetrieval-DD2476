@@ -14,6 +14,8 @@ import java.util.NoSuchElementException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Arrays;
+import java.util.Collections;
 
 /**
  * Searches an index for results of a query.
@@ -135,9 +137,8 @@ public class Searcher {
     private PostingsList getRecursivePhrase(PostingsList p1, ArrayList<PostingsList> postingsLists) {
 
         /** Increment */
-        PostingsList p2 = postingsLists.get(postingsLists.size() - 1);
-
-        postingsLists.remove(postingsLists.size() - 1);
+        PostingsList p2 = postingsLists.get(postingsLists.size()-1);
+        postingsLists.remove(postingsLists.size()-1);
 
         Iterator<PostingsEntry> itp1 = p1.iterator();
         Iterator<PostingsEntry> itp2 = p2.iterator();
@@ -161,6 +162,8 @@ public class Searcher {
                     /* Get positional indexes */
                     pList1 = docID1.getPositionList();
                     pList2 = docID2.getPositionList();
+                    Collections.sort(pList1);
+                    Collections.sort(pList2);
 
                     itps1 = pList1.iterator();
                     itps2 = pList2.iterator();
@@ -174,7 +177,11 @@ public class Searcher {
                             if (ps2 < ps1) {
                                 ps2 = itps2.next();
                             } else if (ps2 == ps1 + 1) {
-                                intersection.add(new PostingsEntry(docID1.docID, ps2));
+                                if (intersection.isEmpty() || !(intersection.get(intersection.size()-1).docID == docID1.docID)) {
+                                    intersection.add(new PostingsEntry(docID1.docID, ps2));
+                                } else {
+                                    intersection.get(intersection.size()-1).addPosition(ps2);
+                                }
 
                                 ps1 = itps1.next();
                                 ps2 = itps2.next();
@@ -189,15 +196,18 @@ public class Searcher {
                         // Do nothing
                     }
 
+                    // int oldDocID = docID1.docID;
+
                     docID1 = (PostingsEntry) itp1.next();
-                    docID2 = (PostingsEntry) itp2.next();
+                    // if (oldDocID != docID1.docID)
+                        docID2 = (PostingsEntry) itp2.next();
                 } else if (docID1.docID < docID2.docID) {
                     docID1 = (PostingsEntry) itp1.next();
                 } else {
                     docID2 = (PostingsEntry) itp2.next();
                 }
             }
-        } catch (Exception e) {
+        } catch (NoSuchElementException e) {
             // Do nothing
         }
 
