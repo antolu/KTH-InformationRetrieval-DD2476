@@ -12,7 +12,7 @@
         },
         {
             "type": "java",
-            "name": "Debug (Launch)-Persistent",
+            "name": "Debug - Persistent",
             "request": "launch",
             "cwd" : "${workspaceRoot}",
             "mainClass": "ir.Engine",
@@ -29,7 +29,7 @@
         },
         {
             "type": "java",
-            "name": "Debug (Launch)-Search Engine",
+            "name": "Debug - Search Engine",
             "request": "launch",
             "cwd" : "${workspaceRoot}",
             "classPaths": ["build"],
@@ -45,7 +45,7 @@
         },
         {
             "type": "java",
-            "name": "Debug (Launch)-Guardian index",
+            "name": "Debug - Guardian index",
             "request": "launch",
             "cwd" : "${workspaceRoot}",
             "mainClass": "ir.Engine",

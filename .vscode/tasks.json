@@ -9,20 +9,38 @@
         {
             "label": "Compile",
             "command": "",
-            "args": [
-                "scripts\\compile_all.bat"
-            ],
+            "windows": {
+                "args": [
+                    "scripts\\compile_all.bat"
+                ],
+            },
+            "linux": {
+                "args": [
+                    "./scripts/compile_all.sh"
+                ],
+            },
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
             "group": {
-                "kind": "build"
+                "kind": "build",
+                "isDefault": true
             },
             "problemMatcher": []
         },
         {
             "label": "TokenTest",
             "command": "",
-            "args": [
-                "scripts\\run_tokenizer.bat"
-            ],
+            "windows": {
+                "args": [
+                    "scripts\\run_tokenizer.bat"
+                ],
+            },
+            "linux": {
+                "args": [
+                    "scripts/run_tokenizer.sh"
+                ],
+            },
             "options": {
                 "cwd": "${workspaceRoot}"
             },
@@ -33,9 +51,16 @@
         {
             "label": "Search engine",
             "command": "",
-            "args": [
-                "scripts\\run_search_engine.bat"
-            ],
+            "windows": {
+                "args": [
+                    "scripts\\run_search_engine.bat"
+                ],
+            },
+            "linux": {
+                "args": [
+                    "scripts/run_search_engine.sh"
+                ],
+            },
             "options": {
                 "cwd": "${workspaceRoot}"
             },
@@ -47,9 +72,16 @@
         {
             "label": "Persistent",
             "command": "",
-            "args": [
-                "scripts\\run_persistent.bat"
-            ],
+            "windows": {
+                "args": [
+                    "scripts\\run_persistent.bat"
+                ],
+            },
+            "linux": {
+                "args": [
+                    "scripts/run_persistent.sh"
+                ],
+            },
             "options": {
                 "cwd": "${workspaceRoot}"
             },
@@ -60,9 +92,16 @@
         {
             "label": "Guardian index",
             "command": "",
-            "args": [
-                "scripts\\run_search_engine_guardian.bat"
-            ],
+            "windows": {
+                "args": [
+                    "scripts\\run_search_engine_guardian.bat"
+                ],
+            },
+            "linux": {
+                "args": [
+                    "scripts/run_search_engine_guardian.sh"
+                ],
+            },
             "options": {
                 "cwd": "${workspaceRoot}"
             },
@@ -73,9 +112,16 @@
         {
             "label": "Guardian persistent",
             "command": "",
-            "args": [
-                "scripts\\run_persistent_guardian.bat"
-            ],
+            "windows": {
+                "args": [
+                    "scripts\\run_persistent_guardian.bat"
+                ],
+            },
+            "linux": {
+                "args": [
+                    "scripts/run_persistent_guardian.sh"
+                ],
+            },
             "options": {
                 "cwd": "${workspaceRoot}"
             },
