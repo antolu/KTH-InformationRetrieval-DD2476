@@ -77,52 +77,42 @@ public class Searcher {
     }
 
     private PostingsList getRankedQuery(Query query) {
-        Sparse q = new Sparse();
+        ArrayList<Double> q = new ArrayList<>();
 
         for(Query.QueryTerm tkn: query.queryterm) {
-            int termID = Index.tokenIndex.get(tkn.term);
-            if (!q.containsKey(termID)) {
-                q.put(termID, 1.0);
-            } else {
-                q.put(termID, q.get(termID) + 1.0); // Increment occurence by 1
-            }
+            q.add(1.0);
         }
-
-        /** Normalize query vector */
-        q.normalize();
 
         ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
-        ArrayList<Sparse> documents = new ArrayList<>();
+        // HashMap<Integer, Double> scores = new HashMap<>();
 
         /** <docID, index> */
-        // HashMap<Integer, Integer> processedDocIDs = new HashMap<>();
         PostingsList pl = postingsLists.get(0).postingsList;
-        int termID = Index.tokenIndex.get(postingsLists.get(0).token);
+        // int termID = Index.tokenIndex.get(postingsLists.get(0).token);
         for (PostingsEntry pe: pl) {
-            double tf = 1.0 + Math.log10(pe.getOccurences());
-            double idf = Math.log10(Index.docNames.size() / pl.size());
+            // double tf = 1.0 + Math.log10(pe.getOccurences());
+            double tfidf = tfidf(pe, pl);
 
-            Sparse d = new Sparse(pe.docID);
-            d.put(termID, tf*idf);
-            documents.add(d);
-
-            pe.score = tf*idf;
+            pe.score = tfidf;
         }
 
-        PostingsList results = new PostingsList();
-        for (Sparse d: documents) {
-            results.add(new PostingsEntry(d.docID, q.cosineSimilarity(d)));
-        }
-
-        /** Normalize scores */
-        for (PostingsEntry pe: results) {
-            // System.err.println(index.docLengths.get(pe.docID));
-            pe.score = pe.score / index.docLengths.get(pe.docID);
-        }
+        PostingsList results = pl;
+        // for (Sparse d: documents) {
+        //     // double similarity = q.cosineSimilarity(d);
+        //     results.add(new PostingsEntry(d.docID, d.get(termID)));
+        // }
 
         Collections.sort(results);
 
         return results;
+    }
+
+    private double tfidf(PostingsEntry pe, PostingsList pl) {
+        double tf = pe.getOccurences();
+        double idf = Math.log10(Index.docNames.size() / pl.size());
+
+        double tfidf = tf * idf / Index.docLengths.get(pe.docID);
+        return tfidf;
     }
 
     /**

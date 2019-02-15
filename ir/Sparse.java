@@ -45,7 +45,8 @@ public class Sparse extends HashMap<Integer, Double> {
         
         denom = norm1 * norm2;
 
-        return nom / denom;
+        // return nom / denom;
+        return nom;
     }
 
     public void normalize() {
@@ -67,5 +68,16 @@ public class Sparse extends HashMap<Integer, Double> {
         for (Map.Entry<Integer, Double> entry : entrySet) {
             entry.setValue(entry.getValue() / num);
         }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+
+        for (Map.Entry<Integer, Double> entry : entrySet()) {
+            sb.append("ID: " + entry.getKey() + ", value: " + entry.getValue() + "\n");
+        }
+
+        return sb.toString();
     }
 }
