@@ -45,6 +45,11 @@ public class Searcher {
             return null;
 
         try {
+
+            if (queryType == QueryType.RANKED_QUERY) {
+                return getRankedQuery(query);
+            }
+
             // Not sufficient number of words for other query
             if (query.queryterm.size() < 2) {
                 return index.getPostings(query.queryterm.get(0).term);
@@ -54,6 +59,8 @@ public class Searcher {
                 return getIntersectionQuery(query, null);
             } else if (queryType == QueryType.PHRASE_QUERY) {
                 return getPhraseQuery(query);
+            } else if (queryType == QueryType.RANKED_QUERY) {
+                return getRankedQuery(query);
             } else {
 
                 String token = query.queryterm.get(0).term;
@@ -67,6 +74,55 @@ public class Searcher {
             return null;
         }
 
+    }
+
+    private PostingsList getRankedQuery(Query query) {
+        Sparse q = new Sparse();
+
+        for(Query.QueryTerm tkn: query.queryterm) {
+            int termID = Index.tokenIndex.get(tkn.term);
+            if (!q.containsKey(termID)) {
+                q.put(termID, 1.0);
+            } else {
+                q.put(termID, q.get(termID) + 1.0); // Increment occurence by 1
+            }
+        }
+
+        /** Normalize query vector */
+        q.normalize();
+
+        ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
+        ArrayList<Sparse> documents = new ArrayList<>();
+
+        /** <docID, index> */
+        // HashMap<Integer, Integer> processedDocIDs = new HashMap<>();
+        PostingsList pl = postingsLists.get(0).postingsList;
+        int termID = Index.tokenIndex.get(postingsLists.get(0).token);
+        for (PostingsEntry pe: pl) {
+            double tf = 1.0 + Math.log10(pe.getOccurences());
+            double idf = Math.log10(Index.docNames.size() / pl.size());
+
+            Sparse d = new Sparse(pe.docID);
+            d.put(termID, tf*idf);
+            documents.add(d);
+
+            pe.score = tf*idf;
+        }
+
+        PostingsList results = new PostingsList();
+        for (Sparse d: documents) {
+            results.add(new PostingsEntry(d.docID, q.cosineSimilarity(d)));
+        }
+
+        /** Normalize scores */
+        for (PostingsEntry pe: results) {
+            // System.err.println(index.docLengths.get(pe.docID));
+            pe.score = pe.score / index.docLengths.get(pe.docID);
+        }
+
+        Collections.sort(results);
+
+        return results;
     }
 
     /**
@@ -99,7 +155,7 @@ public class Searcher {
      * Finds the postings entries corresponding to the docIDs in `postingsList`.
      * 
      * @param query        The tokens to fetch postings entries for
-     * @param postingsList A list of docIDs to find postingsentries for
+     * @param postingsList A list of docIDs to find postings entries for
      * 
      * @return An ArrayList of PostingsLists with postings entries for each token in
      *         `query` and docID in `postingsList`.
@@ -315,7 +371,7 @@ public class Searcher {
     private ArrayList<PhraseToken> getPostingsLists(Query query) throws IllegalArgumentException {
         ArrayList<PhraseToken> postingsLists = new ArrayList<>();
 
-        // Retrive all postingsLists for query tokens
+        // Retrieve all postingsLists for query tokens
         for (int i = 0; i < query.queryterm.size(); i++) {
             String token = query.queryterm.get(i).term;
 
