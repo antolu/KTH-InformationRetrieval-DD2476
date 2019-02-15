@@ -116,7 +116,9 @@ public class PersistentHashedIndex implements Index {
 
         try {
             readDocInfo();
+            readTokenIndex();
         } catch (FileNotFoundException e) {
+        } catch (ArrayIndexOutOfBoundsException e) {
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -287,6 +289,40 @@ public class PersistentHashedIndex implements Index {
         System.err.println("[INFO]" + collisions + " collisions.");
     }
 
+    /**
+     * Writes the document names and document lengths to file.
+     *
+     * @throws IOException { exception_description }
+     */
+    protected void writeTokenIndex() throws IOException {
+        FileOutputStream fout = new FileOutputStream(INDEXDIR + "/tokenIndex");
+        for (Map.Entry<String, Integer> entry : tokenIndex.entrySet()) {
+            String key = entry.getKey();
+            String docInfoEntry = key + " " + entry.getValue() + "\n";
+            fout.write(docInfoEntry.getBytes());
+        }
+        fout.close();
+    }
+
+    /**
+     * Reads the document names and document lengths from file, and put them in the
+     * appropriate data structures.
+     *
+     * @throws IOException { exception_description }
+     */
+    protected void readTokenIndex() throws IOException {
+        File file = new File(INDEXDIR + "/tokenIndex");
+        FileReader freader = new FileReader(file);
+        try (BufferedReader br = new BufferedReader(freader)) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] data = line.split(" ");
+                tokenIndex.put(data[0], Integer.parseInt(data[1]));
+            }
+        }
+        freader.close();
+    }
+
     // ==================================================================
 
     /**
@@ -379,6 +415,11 @@ public class PersistentHashedIndex implements Index {
         System.err.println("[INFO]" + index.keySet().size() + " unique words");
         System.err.print("[INDEX] Writing index to disk...");
         writeIndex();
+        try {
+            writeTokenIndex();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         System.err.println("[SUCCESS] Done!");
     }
 }
