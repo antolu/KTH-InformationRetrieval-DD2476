@@ -28,6 +28,8 @@ public class Searcher {
     /** The k-gram index to be searched by this Searcher */
     KGramIndex kgIndex;
 
+    private static final Normalizer norm = Normalizer.EUCLIDEAN;
+
     /** Constructor */
     public Searcher(Index index, KGramIndex kgIndex) {
         this.index = index;
@@ -77,31 +79,92 @@ public class Searcher {
     }
 
     private PostingsList getRankedQuery(Query query) {
+
+        /** Build query vector */
         ArrayList<Double> q = new ArrayList<>();
 
-        for(Query.QueryTerm tkn: query.queryterm) {
-            q.add(1.0);
+        HashMap<String, Integer> tkns = new HashMap<>();
+        for (int i = 0; i < query.queryterm.size(); i++) {
+            if (!tkns.containsKey(query.queryterm.get(i).term))
+                q.add(1.0);
+            else {
+                int idx = tkns.get(query.queryterm.get(i).term);
+                q.set(idx, q.get(idx) + 1.0);
+            }
         }
+
+        /** Normalize q */
+        int val = 0;
+        for (double d: q) {
+            if (norm == Normalizer.EUCLIDEAN)
+                val += Math.pow(d, 2);
+            else if (norm == Normalizer.MANHATTAN)
+                val += d;
+        }
+
+        for (int i = 0; i < q.size(); i++) {
+            double denominator = 1.0;
+            if (norm == Normalizer.EUCLIDEAN)
+                denominator = Math.sqrt(val);
+            else if (norm == Normalizer.MANHATTAN)
+                denominator = val;
+            q.set(i, q.get(i) / denominator);
+        }
+
 
         ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
-        // HashMap<Integer, Double> scores = new HashMap<>();
+        HashMap<Integer, PostingsEntry> scores = new HashMap<>();
+        HashMap<Integer, Double> denom = new HashMap<>();
 
         /** <docID, index> */
-        PostingsList pl = postingsLists.get(0).postingsList;
-        // int termID = Index.tokenIndex.get(postingsLists.get(0).token);
-        for (PostingsEntry pe: pl) {
-            // double tf = 1.0 + Math.log10(pe.getOccurences());
-            double tfidf = tfidf(pe, pl);
+        int i = 0;
+        for (PhraseToken pt: postingsLists) {
+            PostingsList pl = pt.postingsList;
+            // int termID = Index.tokenIndex.get(postingsLists.get(0).token);
+            for (PostingsEntry pe: pl) {
+                // double tf = 1.0 + Math.log10(pe.getOccurences());
+                double tfidf = tfidf(pe, pl);
 
-            pe.score = tfidf;
+                double score = q.get(i) * tfidf;
+
+                if (!scores.containsKey(pe.docID)) {
+                    scores.put(pe.docID, new PostingsEntry(pe.docID, score));
+
+                    if (norm == Normalizer.EUCLIDEAN)
+                        denom.put(pe.docID, Math.pow(tfidf, 2));
+                    else if (norm == Normalizer.MANHATTAN) {
+                        denom.put(pe.docID, tfidf);
+                    }
+                }
+                else {
+                    scores.get(pe.docID).score += score;
+
+                    if (norm == Normalizer.EUCLIDEAN)
+                        denom.put(pe.docID, denom.get(pe.docID) + Math.pow(tfidf, 2));
+                    else if (norm == Normalizer.MANHATTAN) {
+                        denom.put(pe.docID, denom.get(pe.docID) + tfidf);
+                    }
+                }
+            }
+            i++;
         }
 
-        PostingsList results = pl;
-        // for (Sparse d: documents) {
-        //     // double similarity = q.cosineSimilarity(d);
-        //     results.add(new PostingsEntry(d.docID, d.get(termID)));
-        // }
+        PostingsList results = new PostingsList();
 
+        /** Normalize score */
+        for (int docID: scores.keySet()) {
+            PostingsEntry pe = scores.get(docID);
+
+            if (norm == Normalizer.EUCLIDEAN)
+                // pe.score /= (Math.sqrt(denom.get(docID)));
+                pe.score /= Index.docLengths.get(pe.docID);
+            else if (norm == Normalizer.MANHATTAN) {
+                pe.score /= denom.get(docID);
+            }
+
+            results.add(pe);
+        }
+        
         Collections.sort(results);
 
         return results;
@@ -111,7 +174,7 @@ public class Searcher {
         double tf = pe.getOccurences();
         double idf = Math.log10(Index.docNames.size() / pl.size());
 
-        double tfidf = tf * idf / Index.docLengths.get(pe.docID);
+        double tfidf = tf * idf;
         return tfidf;
     }
 
