@@ -128,6 +128,26 @@
             "group": {
                 "kind": "test"
             }
+        },
+        {
+            "label": "PageRank",
+            "command": "",
+            "windows": {
+                "args": [
+                    "scripts\\run_pagerank.bat"
+                ],
+            },
+            "linux": {
+                "args": [
+                    "scripts/run_pagerank.sh"
+                ],
+            },
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "group": {
+                "kind": "test"
+            }
         }
     ]
 }
