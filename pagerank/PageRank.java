@@ -25,7 +25,9 @@ public class PageRank {
      * The transition matrix. p[i][j] = the probability that the random surfer
      * clicks from page i to page j.
      */
-    double[][] p = new double[MAX_NUMBER_OF_DOCS][MAX_NUMBER_OF_DOCS];
+    Matrix p = new Matrix(MAX_NUMBER_OF_DOCS, MAX_NUMBER_OF_DOCS);
+    Matrix J = new Matrix(MAX_NUMBER_OF_DOCS, MAX_NUMBER_OF_DOCS);
+    Matrix G = new Matrix(MAX_NUMBER_OF_DOCS, MAX_NUMBER_OF_DOCS);
 
     /**
      * The number of outlinks from each node.
@@ -48,7 +50,24 @@ public class PageRank {
      * Convergence criterion: Transition probabilities do not change more that
      * EPSILON from one iteration to another.
      */
-    final static double EPSILON = 0.0001;
+    final static double EPSILON = 0.000001;
+
+    private int fileIndex = 0;
+
+    private class Pair implements Comparable<Pair> {
+        public int docID = 0;
+        public double value = 0.0;
+
+        public Pair(int docID, double value) {
+            this.docID = docID;
+            this.value = value;
+        }
+
+        @Override
+        public int compareTo(Pair other) {
+            return Double.compare(value, other.value);
+        }
+    }
 
     /* --------------------------------------------- */
 
@@ -69,7 +88,7 @@ public class PageRank {
      * @return the number of documents read.
      */
     int readDocs(String filename) {
-        int fileIndex = 0;
+        fileIndex = 0;
         try {
             System.err.print("Reading file... ");
             BufferedReader in = new BufferedReader(new FileReader(filename));
@@ -98,8 +117,8 @@ public class PageRank {
                     }
                     // Set the probability to LINK for now, to indicate that there is
                     // a link from d to otherDoc.
-                    if (p[fromdoc][otherDoc] >= 0) {
-                        p[fromdoc][otherDoc] = LINK;
+                    if (p.mtx[fromdoc][otherDoc] >= 0) {
+                        p.mtx[fromdoc][otherDoc] = LINK;
                         out[fromdoc]++;
                     }
                 }
@@ -124,9 +143,32 @@ public class PageRank {
      * Initiates the probability matrix.
      */
     void initiateProbabilityMatrix(int numberOfDocs) {
+        Matrix J = Matrix.fillMatrix(MAX_NUMBER_OF_DOCS, MAX_NUMBER_OF_DOCS, BORED/(fileIndex-1));
 
-        // YOUR CODE HERE
+        for (int i = 0; i < fileIndex-1; i++) {
+            for (int j = 0; j < fileIndex-1; j++) {
+                if (p.mtx[i][j] == -1 && out[i] != 0) {
+                    p.mtx[i][j] = 1.0 / out[i];
+                }
+                else if (out[i] == 0 ) {
+                    p.mtx[i][j] = 1.0 / (fileIndex-1);
+                }
+            }
 
+            for (int j = fileIndex; j < MAX_NUMBER_OF_DOCS; j++) {
+                J.mtx[i][j] = 0.0;
+            }
+        }
+
+        for (int i = fileIndex; i < MAX_NUMBER_OF_DOCS; i++) {
+            for (int j = 0; j < MAX_NUMBER_OF_DOCS; j++) {
+                J.mtx[i][j] = 0.0;
+            }
+        }
+
+        Matrix.scalarMult(p, 1.0 - BORED);
+
+        G = Matrix.add(p, J);
     }
 
     /* --------------------------------------------- */
@@ -137,13 +179,46 @@ public class PageRank {
      */
     void iterate(int numberOfDocs, int maxIterations) {
 
-        // YOUR CODE HERE
+        Matrix a_old = Matrix.fillMatrix(1, MAX_NUMBER_OF_DOCS, 10);
+        Matrix a = new Matrix(1, MAX_NUMBER_OF_DOCS);
+        a.mtx[0][0] = 1;
 
+        int i = 0;
+        double err = 10;
+        while (err > EPSILON) {
+            i++;
+            a_old = a;
+            a = Matrix.multiply(a, G);
+            Matrix.normalize(a);
+
+            err = Matrix.distance(a_old, a);
+        }
+
+        System.err.println("Iterations: " + i);
+
+        getResults(a);
+    }
+
+    void getResults(Matrix a) {
+        ArrayList<Pair> results = new ArrayList<>();
+
+        for (int i = 0; i < a.n; i++) {
+            results.add(new Pair(i, a.mtx[0][i]));
+        }
+
+        Collections.sort(results, Collections.reverseOrder());
+
+        for (int i = 0; i < 30; i++) {
+            Pair pair = results.get(i);
+            String name = docName[pair.docID];
+
+            System.err.println(name + " " + pair.value);
+        }
     }
 
     /* --------------------------------------------- */
 
-    public static void main(String[] args) {
+    public static void main(String[] args) {   
         if (args.length != 1) {
             System.err.println("Please give the name of the link file");
         } else {
