@@ -212,7 +212,7 @@ public class PageRank {
             Pair pair = results.get(i);
             String name = docName[pair.docID];
 
-            System.err.println(name + " " + pair.value);
+            System.err.format(name + " %.5f%n", pair.value);
         }
     }
 
