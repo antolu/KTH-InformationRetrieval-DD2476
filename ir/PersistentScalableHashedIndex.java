@@ -455,7 +455,8 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         System.err.println("[INFO] Moving files into place...");
 
         try {
-
+            writeTokenIndex();
+            
             /** re-point the index files */
             dataFile.close();
             dictionaryFile.close();
