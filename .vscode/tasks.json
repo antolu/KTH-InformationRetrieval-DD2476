@@ -146,11 +146,10 @@
             },
             "group": {
                 "kind": "test",
-                "isDefault": true
             }
         },
         {
-            "label": "PageRankSparses",
+            "label": "PageRankSparse",
             "command": "",
             "windows": {
                 "args": [

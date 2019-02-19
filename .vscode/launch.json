@@ -6,6 +6,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "CodeLens (Launch) - SparseTest",
+            "request": "launch",
+            "mainClass": "pagerank.SparseTest",
+            "projectName": "DD2476_7af0bc28"
+        },
+        {
+            "type": "java",
             "name": "Debug (Launch) - Current File",
             "request": "launch",
             "mainClass": "${file}"
@@ -14,10 +21,12 @@
             "type": "java",
             "name": "Debug - Persistent",
             "request": "launch",
-            "cwd" : "${workspaceRoot}",
+            "cwd": "${workspaceRoot}",
             "mainClass": "ir.Engine",
-            "classPaths": ["build"],
-            "args" : [
+            "classPaths": [
+                "build"
+            ],
+            "args": [
                 "-d",
                 "davisWiki",
                 "-l",
@@ -31,41 +40,45 @@
             "type": "java",
             "name": "Debug - Search Engine",
             "request": "launch",
-            "cwd" : "${workspaceRoot}",
-            "classPaths": ["build"],
+            "cwd": "${workspaceRoot}",
+            "classPaths": [
+                "build"
+            ],
             "mainClass": "ir.Engine",
-            "args" : [
+            "args": [
                 "-d",
                 "davisWiki",
                 "-l",
                 "ir19.gif",
                 "-p",
-                "patterns.txt",
+                "patterns.txt"
             ]
         },
         {
             "type": "java",
             "name": "Debug - Guardian index",
             "request": "launch",
-            "cwd" : "${workspaceRoot}",
+            "cwd": "${workspaceRoot}",
             "mainClass": "ir.Engine",
-            "args" : [
+            "args": [
                 "-d",
                 "guardian",
                 "-l",
                 "ir19.gif",
                 "-p",
-                "patterns.txt",
+                "patterns.txt"
             ]
         },
         {
             "type": "java",
             "name": "Debug - PageRankSparse",
             "request": "launch",
-            "cwd" : "${workspaceRoot}",
-            "classPaths": ["build"],
+            "cwd": "${workspaceRoot}",
+            "classPaths": [
+                "build"
+            ],
             "mainClass": "pagerank.PageRankSparse",
-            "args" : [
+            "args": [
                 "pagerank/linksDavis.txt"
             ]
         }
