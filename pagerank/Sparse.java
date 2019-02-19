@@ -8,7 +8,7 @@ import java.util.Set;
 @SuppressWarnings("serial")
 public class Sparse extends HashMap<Integer, Double> {
 
-    private static final Normalizer norm = Normalizer.EUCLIDEAN;
+    private static final Normalizer norm = Normalizer.MANHATTAN;
 
     private final HashSet<Integer> rowHasData = new HashSet<>();
 
@@ -50,7 +50,7 @@ public class Sparse extends HashMap<Integer, Double> {
             numElements++;
         }
 
-        num += (m * n - numElements) * Math.pow(defaultValue, 2.0);
+        // num += (m * n - numElements) * Math.pow(defaultValue, 2.0);
 
         if (norm == Normalizer.EUCLIDEAN) {
             num = Math.sqrt(num);
@@ -181,6 +181,7 @@ public class Sparse extends HashMap<Integer, Double> {
         
         HashSet<Integer> writtenIndexes = new HashSet<>();
 
+        int numElements = 0;
         for (Map.Entry<Integer, Double> entry: a.entrySet()) {
             int key = entry.getKey();
             if (b.containsKey(key)) {
@@ -189,6 +190,7 @@ public class Sparse extends HashMap<Integer, Double> {
                 alignment += Math.pow(entry.getValue(), 2);
             }
             writtenIndexes.add(key);
+            numElements += 0;
         }
 
         for (Map.Entry<Integer, Double> entry: b.entrySet()) {
@@ -196,6 +198,7 @@ public class Sparse extends HashMap<Integer, Double> {
             if (!writtenIndexes.contains(key)) {
                 alignment += Math.pow(entry.getValue(), 2);
             }
+            numElements += 0;
         }
 
         alignment = Math.sqrt(alignment);
