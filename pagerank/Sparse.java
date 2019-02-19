@@ -72,18 +72,20 @@ public class Sparse extends HashMap<Integer, Double> {
 
         Sparse prod = new Sparse(m, n, a.defaultValue * b.defaultValue);
         
-        int product_val;
+        double product_val;
         for (int i = 0; i < m; i++){
             for (int j = 0; j < n; j++){
                 product_val = 0;
                 for( int k = 0; k < b.m; k++) {
-                    System.err.println(i + " " + j + " " + k);
+                    // System.err.println(i + " " + j + " " + k);
                     if (a.contains(i, k) && b.contains(k, j))
-                        product_val += a.get(i * a.n +k) * b.get(k* b.n + j);
-                    else if (!a.contains(i, k)) 
-                        product_val += a.defaultValue * b.get(k* b.n + j);
-                    else if (!b.contains(k, j)) 
-                        product_val += a.get(i * a.n +k) * b.defaultValue;
+                        product_val += (a.get(i * a.n +k) * b.get(k * b.n + j));
+                    else if (!a.contains(i, k) && b.contains(k,j)) {
+                        product_val += (a.defaultValue * b.get(k* b.n + j));
+                    }
+                    else if (!b.contains(k, j) && a.contains(i,k)) {
+                        product_val += (a.get(i * a.n +k) * b.defaultValue);
+                    }
                 } 
                 prod.add(i, j, product_val);
             }
