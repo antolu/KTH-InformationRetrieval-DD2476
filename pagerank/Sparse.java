@@ -28,12 +28,12 @@ public class Sparse extends HashMap<Integer, Double> {
     }
 
     public void add(int i, int j, double val) {
-        put(i * (m-1) + j, val);
+        put(i * n + j, val);
         rowHasData.add(i);
     }
 
     public boolean contains(int i, int j) {
-        return containsKey(i * (m-1) + j);
+        return containsKey(i * n + j);
     }
 
     public void normalize() {
@@ -79,11 +79,11 @@ public class Sparse extends HashMap<Integer, Double> {
                 for( int k = 0; k < b.m; k++) {
                     System.err.println(i + " " + j + " " + k);
                     if (a.contains(i, k) && b.contains(k, j))
-                        product_val += a.get(i * (a.m - 1) +k) * b.get(k* (b.m-1) + j);
+                        product_val += a.get(i * a.n +k) * b.get(k* b.n + j);
                     else if (!a.contains(i, k)) 
-                        product_val += a.defaultValue * b.get(k* (b.m-1) + j);
+                        product_val += a.defaultValue * b.get(k* b.n + j);
                     else if (!b.contains(k, j)) 
-                        product_val += a.get(i * (a.m - 1) +k) * b.defaultValue;
+                        product_val += a.get(i * a.n +k) * b.defaultValue;
                 } 
                 prod.add(i, j, product_val);
             }
@@ -101,7 +101,7 @@ public class Sparse extends HashMap<Integer, Double> {
             throw new IllegalArgumentException("Incompatible matrix dimensions: " + a.m + " x " + a.n + " " + b.m + "x" + b.n);
         }
 
-        Sparse ret = new Sparse(m, n);
+        Sparse ret = new Sparse(m, n, a.defaultValue + b.defaultValue);
 
         HashSet<Integer> writtenIndexes = new HashSet<>();
         
@@ -124,8 +124,6 @@ public class Sparse extends HashMap<Integer, Double> {
             }
         }
 
-        a.defaultValue += b.defaultValue;
-
         return ret;
     }
 
@@ -138,7 +136,7 @@ public class Sparse extends HashMap<Integer, Double> {
             throw new IllegalArgumentException("Incompatible matrix dimensions: " + a.m + " x " + a.n + " " + b.m + "x" + b.n);
         }
 
-        Sparse ret = new Sparse(m, n);
+        Sparse ret = new Sparse(m, n, a.defaultValue - b.defaultValue);
 
         HashSet<Integer> writtenIndexes = new HashSet<>();
         
@@ -161,8 +159,6 @@ public class Sparse extends HashMap<Integer, Double> {
                 ret.put(key, -entry.getValue());
             }
         }
-
-        a.defaultValue -= b.defaultValue;
 
         return ret;
     }
