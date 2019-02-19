@@ -57,6 +57,17 @@
                 "-p",
                 "patterns.txt",
             ]
+        },
+        {
+            "type": "java",
+            "name": "Debug - PageRankSparse",
+            "request": "launch",
+            "cwd" : "${workspaceRoot}",
+            "classPaths": ["build"],
+            "mainClass": "pagerank.PageRankSparse",
+            "args" : [
+                "pagerank/linksDavis.txt"
+            ]
         }
     ]
 }

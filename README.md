@@ -184,4 +184,4 @@ The reason the query `queen of england` yields 364 (out of 364) matches in inter
 
 > Look up the titles of some documents with high rank, and some documents with low rank. Does the ranking make sense. 
 
-A lot of documents link to 21, and 21 links to 36 so it in turn has high rating. It makes sense
+A lot of documents link to 21, and 21 links to 36 so it in turn has high rating. It makes sense. 3 links to 21. 
