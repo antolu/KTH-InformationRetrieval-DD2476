@@ -1,7 +1,13 @@
 package pagerank;
 
-import java.util.*;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.StringTokenizer;
 
 public class PageRankSparse {
 
@@ -40,9 +46,9 @@ public class PageRankSparse {
 	 */
 	int[] out = new int[MAX_NUMBER_OF_DOCS];
 
-	Matrix p = new Matrix(MAX_NUMBER_OF_DOCS, MAX_NUMBER_OF_DOCS);
-    Matrix J = new Matrix(MAX_NUMBER_OF_DOCS, MAX_NUMBER_OF_DOCS);
-    Matrix G = new Matrix(MAX_NUMBER_OF_DOCS, MAX_NUMBER_OF_DOCS);
+	Sparse p;
+    Sparse J;
+    Sparse G;
 
 	/**
 	 * The probability that the surfer will be bored, stop following links, and take
@@ -58,6 +64,11 @@ public class PageRankSparse {
 
 	private int fileIndex = 0;
 
+	/**
+	 * A Pair implementation so one can sort
+	 * a list with regard to one value while
+	 * retaining reference to the second one. 
+	*/
 	private class Pair implements Comparable<Pair> {
         public int docID = 0;
         public double value = 0.0;
@@ -77,6 +88,7 @@ public class PageRankSparse {
 
 	public PageRankSparse(String filename) {
 		int noOfDocs = readDocs(filename);
+		initiateProbabilityMatrix(noOfDocs);
 		iterate(noOfDocs, 1000);
 	}
 
@@ -141,24 +153,45 @@ public class PageRankSparse {
 
 	/* --------------------------------------------- */
 
+	/**
+	 * Initializes the probability matrix p
+	 * 
+	 * @param int numberOfDocs
+	 */
+	void initiateProbabilityMatrix(int numberOfDocs) {
+		p = new Sparse(numberOfDocs, numberOfDocs, 1.0 / numberOfDocs);
+		J = new Sparse(numberOfDocs, numberOfDocs, BORED * 1.0 / numberOfDocs);
+		
+        for (int i = 0; i < numberOfDocs-1; i++) {
+			if (link.containsKey(i)) {
+				for (int j: link.get(i).keySet())
+					p.add(i, j, 1.0/out[i]);
+			}
+        }
+
+        Sparse.scalarMult(p, 1.0 - BORED);
+
+        G = Sparse.add(p, J);
+    }
+
 	/*
 	 * Chooses a probability vector a, and repeatedly computes aP, aP^2, aP^3...
 	 * until aP^i = aP^(i+1).
 	 */
 	private void iterate(int numberOfDocs, int maxIterations) {
-        Matrix a_old = Matrix.fillMatrix(1, MAX_NUMBER_OF_DOCS, 10);
-        Matrix a = new Matrix(1, MAX_NUMBER_OF_DOCS);
-        a.mtx[0][0] = 1;
+        Sparse a_old = new Sparse(1, numberOfDocs, 10.0);
+        Sparse a = new Sparse(1, numberOfDocs, 0.0);
+        a.put(0, 1.0);
 
         int i = 0;
         double err = 10;
         while (err > EPSILON) {
             i++;
             a_old = a;
-            a = Matrix.multiply(a, G);
-            Matrix.normalize(a);
+            a = Sparse.multiply(a, G);
+            a.normalize();
 
-            err = Matrix.distance(a_old, a);
+            err = Sparse.distance(a_old, a);
         }
 
         System.err.println("Iterations: " + i);
@@ -166,16 +199,21 @@ public class PageRankSparse {
         getResults(a);
 	}
 
-	private void getResults(Matrix a) {
+	private void getResults(Sparse a) {
         ArrayList<Pair> results = new ArrayList<>();
 
-        for (int i = 0; i < a.n; i++) {
-            results.add(new Pair(i, a.mtx[0][i]));
+		int i = 0;
+        for (i = 0; i < a.n - 1; i++) {
+			try {
+				results.add(new Pair(i, a.get(i * (a.m - 1))));
+			} catch (NullPointerException e) {
+				results.add(new Pair(i, 0));
+			}
         }
 
         Collections.sort(results, Collections.reverseOrder());
 
-        for (int i = 0; i < 30; i++) {
+        for (i = 0; i < 30; i++) {
             Pair pair = results.get(i);
             String name = docName[pair.docID];
 
