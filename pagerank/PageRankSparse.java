@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.StringTokenizer;
 
 public class PageRankSparse {
@@ -45,10 +47,8 @@ public class PageRankSparse {
 	 * The number of outlinks from each node.
 	 */
 	int[] out = new int[MAX_NUMBER_OF_DOCS];
-
-	Sparse p;
-    Sparse J;
-    Sparse G;
+	
+    HashMap<Integer, LinkedHashMap<Integer, Double>> G = new HashMap<>();
 
 	/**
 	 * The probability that the surfer will be bored, stop following links, and take
@@ -60,7 +60,7 @@ public class PageRankSparse {
 	 * Convergence criterion: Transition probabilities do not change more that
 	 * EPSILON from one iteration to another.
 	 */
-	final static double EPSILON = 0.0001;
+	final static double EPSILON = 0.00001;
 
 	private int fileIndex = 0;
 
@@ -89,6 +89,7 @@ public class PageRankSparse {
 	public PageRankSparse(String filename) {
 		int noOfDocs = readDocs(filename);
 		initiateProbabilityMatrix(noOfDocs);
+		// compareMatrices(G_mat, sparseToMatrix(1.0/noOfDocs));
 		iterate(noOfDocs, 1000);
 	}
 
@@ -159,20 +160,16 @@ public class PageRankSparse {
 	 * @param int numberOfDocs
 	 */
 	void initiateProbabilityMatrix(int numberOfDocs) {
-		p = new Sparse(numberOfDocs, numberOfDocs, 1.0 / numberOfDocs);
-		J = new Sparse(numberOfDocs, numberOfDocs, BORED * 1.0 / numberOfDocs);
-		
-        for (int i = 0; i < numberOfDocs-1; i++) {
+		final double NOT_BORED = 1.0 - BORED;
+
+        for (int i = 0; i < numberOfDocs; i++) {
 			if (out[i] != 0) {
+				LinkedHashMap<Integer, Double> row = new LinkedHashMap<>();
 				for (int j: link.get(i).keySet())
-					p.add(i, j, 1.0/out[i]);
+					row.put(j, NOT_BORED / out[i]);
+				G.put(i, row);
 			}
 		}
-		
-        Sparse.scalarMult(p, 1.0 - BORED);
-		System.err.println(p);
-
-        G = Sparse.add(p, J);
     }
 
 	/*
@@ -180,22 +177,23 @@ public class PageRankSparse {
 	 * until aP^i = aP^(i+1).
 	 */
 	private void iterate(int numberOfDocs, int maxIterations) {
-        Matrix a_old = Matrix.fillMatrix(1, numberOfDocs, 10.0);
-        Matrix a = new Matrix(1, numberOfDocs);
-        a.mtx[0][0] = 1.0;
+		double[] a_old = new double[numberOfDocs];
+		double[] a = new double[numberOfDocs];
+        a[0] = 1.0;
 
         int i = 0;
         double err = 10;
-        while (err > EPSILON) {
+        while (err > EPSILON && i < maxIterations) {
+		// while (i < 30) {
 			System.err.println("Iteration: " + i);
             i++;
             a_old = a;
-            a = G.multiplyLeftVector(a);
-			Matrix.normalize(a);
-			for (int j = 0; j < 30; j++) 
-				System.err.println(a.mtx[0][j]);
+            a = multiply(a, 1.0/numberOfDocs);
+			normalize(a);
+			// for (int j = 0; j < 30; j++) 
+			// 	System.err.println(a[j]);
 
-            err = Matrix.distance(a_old, a);
+            err = distance(a_old, a);
         }
 
         System.err.println("Iterations: " + i);
@@ -203,11 +201,11 @@ public class PageRankSparse {
         getResults(a);
 	}
 
-    void getResults(Matrix a) {
+    void getResults(double[] a) {
         ArrayList<Pair> results = new ArrayList<>();
 
-        for (int i = 0; i < a.n; i++) {
-            results.add(new Pair(i, a.mtx[0][i]));
+        for (int i = 0; i < a.length; i++) {
+            results.add(new Pair(i, a[i]));
         }
 
         Collections.sort(results, Collections.reverseOrder());
@@ -218,7 +216,96 @@ public class PageRankSparse {
 
             System.err.format(name + " %.5f%n", pair.value);
         }
-    }
+	}
+
+	private double[][] sparseToMatrix(double defaultValue) {
+		double[][] mat = new double[fileIndex][fileIndex];
+
+		double rowDefault = BORED /fileIndex;
+
+		for (int j = 0; j < fileIndex; j++) {
+			if (G.containsKey(j)) {
+				LinkedHashMap<Integer, Double> row = G.get(j);
+				for (Map.Entry<Integer, Double> e: row.entrySet()) {
+					mat[j][e.getKey()] = e.getValue(); 
+				}
+				for (int i = 0; i < fileIndex; i++) {
+					mat[j][i] += rowDefault;
+				}
+			} else {
+				for (int i = 0; i < fileIndex; i++) {
+					mat[j][i] = defaultValue;
+				}
+			}
+		}
+
+		return mat;
+	}
+	
+	private double[] multiply(double[] vec, double defaultValue) {
+		double[] prod = new double[vec.length];
+
+		double rowDefault = BORED /fileIndex;
+
+		for (int j = 0; j < vec.length; j++) {
+			if (G.containsKey(j)) {
+				LinkedHashMap<Integer, Double> row = G.get(j);
+				for (Map.Entry<Integer, Double> e: row.entrySet()) {
+					prod[e.getKey()] += vec[j] * e.getValue();
+				}
+				for (int i = 0; i < vec.length; i++) {
+					prod[i] += vec[j] * rowDefault;
+				}
+			} else {
+				double val = vec[j] * defaultValue;
+				for (int i = 0; i < vec.length; i++) {
+					prod[i] += val;
+				}
+			}
+		}
+
+		return prod;
+	}
+	private static void normalize(double[] a) {
+        
+		double norm = 0.0;
+        for (int i = 0; i < a.length; i++){
+			norm += a[i];
+		}
+		
+		for (int i = 0; i < a.length; i++){
+			a[i] /= norm;
+		}
+	}
+	
+	private static double distance(double[] a, double[] b) throws IllegalArgumentException {
+
+        if (a.length != b.length) {
+            throw new IllegalArgumentException("Incompatible dimensions: " + a.length + ", " + b.length);
+        }
+
+        double alignment = 0.0;
+        
+        for (int i = 0; i < a.length; i++){
+            alignment += Math.pow(a[i] - b[i], 2);
+        }
+
+        alignment = Math.sqrt(alignment);
+
+        return alignment;
+	}
+	
+	private void compareMatrices(Matrix a, double[][] b) {
+		for (int i = 0; i < a.m; i++) {
+			for (int j = 0; j < a.m; j++) {
+				if (Math.abs(a.mtx[i][j] - b[i][j]) > 0.0000001) {
+					System.err.println("(" + i + ", " + j + ")");
+					System.err.println(a.mtx[i][j] + " " + b[i][j]);
+					return;
+				}
+			}
+		}
+	}
 
 
 	/* --------------------------------------------- */
