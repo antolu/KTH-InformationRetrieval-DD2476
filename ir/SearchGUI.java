@@ -8,14 +8,45 @@
  */
 package ir;
 
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
-import javax.swing.text.*;
-import javax.swing.event.*;
-import javax.swing.border.*;
-import java.util.*;
-import java.io.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.StringTokenizer;
+
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ButtonGroup;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JEditorPane;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JRadioButtonMenuItem;
+import javax.swing.JScrollPane;
+import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.ScrollPaneLayout;
+import javax.swing.border.EmptyBorder;
 
 
 /**
@@ -52,7 +83,7 @@ public class SearchGUI extends JFrame {
     public JPanel resultWindow = new JPanel();
     private JScrollPane resultPane = new JScrollPane( resultWindow );
     public JTextField queryWindow = new JTextField( "", 28 );
-    public JTextArea docTextView = new JTextArea( "", 15, 28 );
+    public JEditorPane docTextView = new JEditorPane();
     private JScrollPane docViewPane = new JScrollPane( docTextView );
     private Font queryFont = new Font( "Arial", Font.BOLD, 24 );
     private Font resultFont = new Font( "Arial", Font.BOLD, 16 );
@@ -86,19 +117,24 @@ public class SearchGUI extends JFrame {
      */
     void init() {
         // Create the GUI
-        setSize( 600, 650 );
+        setSize( 600, 700 );
         setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
         JPanel p = new JPanel();
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
         resultWindow.setLayout(new BoxLayout(resultWindow, BoxLayout.Y_AXIS));
         resultPane.setLayout(new ScrollPaneLayout());
         resultPane.setBorder( new EmptyBorder(10,10,10,0) );
-        resultPane.setPreferredSize( new Dimension(400, 450 ));
+        resultPane.setPreferredSize( new Dimension(400, 400 ));
+        resultPane.setMaximumSize( new Dimension(600, 400 ));
+        resultPane.setMinimumSize( new Dimension(300, 300 ));
         getContentPane().add(p, BorderLayout.CENTER);
         // Top menus
         menuBar.add( fileMenu );
         menuBar.add( optionsMenu );
         menuBar.add( rankingMenu );
+        menuBar.setPreferredSize(new Dimension(200, 20));
+        menuBar.setMaximumSize(new Dimension(250, 40));
+        menuBar.setMinimumSize(new Dimension(150, 20));
         fileMenu.add( quitItem );
         optionsMenu.add( intersectionItem );
         optionsMenu.add( phraseItem );
@@ -125,12 +161,18 @@ public class SearchGUI extends JFrame {
         p3.setLayout(new BoxLayout(p3, BoxLayout.X_AXIS));
         p3.add( queryWindow );
         queryWindow.setFont( queryFont );
+        queryWindow.setSize(new Dimension(600, 30));
+        queryWindow.setMaximumSize(new Dimension(600, 30));
+
+
         p.add( p3 );
         p.add( resultPane );
 
+        docTextView.setPreferredSize(new Dimension(600, 400));
+        docTextView.setMaximumSize(new Dimension(600, 1000));
         docTextView.setFont(resultFont);
-        docTextView.setLineWrap(true);
-        docTextView.setWrapStyleWord(true);
+        // docTextView.setLineWrap(true);
+        // docTextView.setWrapStyleWord(true);
         docTextView.setText("\n  The contents of the document will appear here.");
         p.add(docViewPane);
         setVisible( true );
