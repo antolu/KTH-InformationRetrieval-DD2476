@@ -66,7 +66,6 @@
             },
             "group": {
                 "kind": "test",
-                "isDefault": true
             }
         },
         {
@@ -127,6 +126,47 @@
             },
             "group": {
                 "kind": "test"
+            }
+        },
+        {
+            "label": "PageRank",
+            "command": "",
+            "windows": {
+                "args": [
+                    "scripts\\run_pagerank.bat"
+                ],
+            },
+            "linux": {
+                "args": [
+                    "scripts/run_pagerank.sh"
+                ],
+            },
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "group": {
+                "kind": "test",
+            }
+        },
+        {
+            "label": "PageRankSparse",
+            "command": "",
+            "windows": {
+                "args": [
+                    "scripts\\run_pageranksparse.bat"
+                ],
+            },
+            "linux": {
+                "args": [
+                    "scripts/run_pageranksparse.sh"
+                ],
+            },
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "group": {
+                "kind": "test",
+                "isDefault": true
             }
         }
     ]

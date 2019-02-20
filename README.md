@@ -179,3 +179,9 @@ docID!offset1,offset2,offset3
 ### 1.8
 
 The reason the query `queen of england` yields 364 (out of 364) matches in intersection query mode, but only 6 (out of 7) in phrase query mode, may be because of how the tokenizer works. Let's say that we have the phrase `queen of<england>` in the document, then the tokenizer may translate this to `queen`, `of`, `<`, `england` and `>`, where queen of england is no longer a contiguous phrase. 
+
+### 2.5
+
+> Look up the titles of some documents with high rank, and some documents with low rank. Does the ranking make sense. 
+
+A lot of documents link to 21, and 21 links to 36 so it in turn has high rating. It makes sense. 3 links to 21. 
