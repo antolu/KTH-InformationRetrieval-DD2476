@@ -163,13 +163,14 @@ public class PageRankSparse {
 		J = new Sparse(numberOfDocs, numberOfDocs, BORED * 1.0 / numberOfDocs);
 		
         for (int i = 0; i < numberOfDocs-1; i++) {
-			if (link.containsKey(i)) {
+			if (out[i] != 0) {
 				for (int j: link.get(i).keySet())
 					p.add(i, j, 1.0/out[i]);
 			}
-        }
-
+		}
+		
         Sparse.scalarMult(p, 1.0 - BORED);
+		System.err.println(p);
 
         G = Sparse.add(p, J);
     }
@@ -179,19 +180,22 @@ public class PageRankSparse {
 	 * until aP^i = aP^(i+1).
 	 */
 	private void iterate(int numberOfDocs, int maxIterations) {
-        Sparse a_old = new Sparse(1, numberOfDocs, 10.0);
-        Sparse a = new Sparse(1, numberOfDocs, 0.0);
-        a.put(0, 1.0);
+        Matrix a_old = Matrix.fillMatrix(1, numberOfDocs, 10.0);
+        Matrix a = new Matrix(1, numberOfDocs);
+        a.mtx[0][0] = 1.0;
 
         int i = 0;
         double err = 10;
         while (err > EPSILON) {
+			System.err.println("Iteration: " + i);
             i++;
             a_old = a;
-            a = Sparse.multiply(a, G);
-            a.normalize();
+            a = G.multiplyLeftVector(a);
+			Matrix.normalize(a);
+			for (int j = 0; j < 30; j++) 
+				System.err.println(a.mtx[0][j]);
 
-            err = Sparse.distance(a_old, a);
+            err = Matrix.distance(a_old, a);
         }
 
         System.err.println("Iterations: " + i);
@@ -199,21 +203,16 @@ public class PageRankSparse {
         getResults(a);
 	}
 
-	private void getResults(Sparse a) {
+    void getResults(Matrix a) {
         ArrayList<Pair> results = new ArrayList<>();
 
-		int i = 0;
-        for (i = 0; i < a.n - 1; i++) {
-			try {
-				results.add(new Pair(i, a.get(i * (a.m - 1))));
-			} catch (NullPointerException e) {
-				results.add(new Pair(i, 0));
-			}
+        for (int i = 0; i < a.n; i++) {
+            results.add(new Pair(i, a.mtx[0][i]));
         }
 
         Collections.sort(results, Collections.reverseOrder());
 
-        for (i = 0; i < 30; i++) {
+        for (int i = 0; i < 30; i++) {
             Pair pair = results.get(i);
             String name = docName[pair.docID];
 

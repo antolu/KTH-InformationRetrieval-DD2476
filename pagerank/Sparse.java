@@ -1,16 +1,18 @@
 package pagerank;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
 @SuppressWarnings("serial")
-public class Sparse extends HashMap<Integer, Double> {
+public class Sparse extends LinkedHashMap<Integer, Double> {
 
     private static final Normalizer norm = Normalizer.MANHATTAN;
 
-    private final HashSet<Integer> rowHasData = new HashSet<>();
+    private final HashMap<Integer, ArrayList<Integer>> colKeys = new HashMap<>();
 
     public int m = 0;
     public int n = 0;
@@ -29,7 +31,14 @@ public class Sparse extends HashMap<Integer, Double> {
 
     public void add(int i, int j, double val) {
         put(i * n + j, val);
-        rowHasData.add(i);
+        if (colKeys.containsKey(j)) {
+            colKeys.get(j).add(i);
+        }
+        else {
+            ArrayList<Integer> col = new ArrayList<>();
+            col.add(i);
+            colKeys.put(j, col);
+        }
     }
 
     public boolean contains(int i, int j) {
@@ -89,6 +98,60 @@ public class Sparse extends HashMap<Integer, Double> {
                 } 
                 prod.add(i, j, product_val);
             }
+        }
+
+        return prod;
+    }
+
+    /**
+     * Performs left multiplication with a row vector with a matrix
+     * vec * mat
+     * 
+     * 
+     * @param vec The vector
+     * @param mat The matrix
+     * 
+     * @return The product of the vector and matrix (vec * mat)
+     * 
+     * @throws IllegalArgumentException When dimensions are not matching
+     */
+    public Matrix multiplyLeftVector(Matrix vec) throws IllegalArgumentException {
+        
+        int m = vec.m;
+        int n = this.n;
+
+        if (vec.n != this.n) {
+            throw new IllegalArgumentException("Incompatible matrix dimensions: " + vec.m + " x " + vec.n + " " + this.m + "x" + this.n);
+        }
+
+        Matrix prod = new Matrix(m, n);
+        
+        double product_val;
+        for (int j = 0; j < this.n; j++){
+            product_val = 0;
+            int lowerBound = 0;
+            int upperBound = 0;
+
+            if (!colKeys.containsKey(j)) {
+                for( int k = 0; k < this.m; k++) {
+                    product_val += vec.mtx[0][k] * this.defaultValue;
+                }
+            } else {
+                for (int kk: colKeys.get(j)) {
+                    upperBound = kk;
+                    product_val += vec.mtx[0][kk] * get(kk * this.n + j);
+
+                    for (int k = lowerBound; k < upperBound; k++) {
+                        product_val += vec.mtx[0][k] * this.defaultValue;
+                    }
+                    lowerBound = upperBound + 1;
+                }
+                for (int k = lowerBound; k < this.m; k++) {
+                    product_val += vec.mtx[0][k] * this.defaultValue;
+                }
+            }
+
+            prod.mtx[0][j] = product_val;
         }
 
         return prod;
