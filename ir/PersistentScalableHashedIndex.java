@@ -495,13 +495,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
         System.err.println("Reading pageranks from file...");
         try {
-            HashMap<String, Double> unfilteredPageranks = PageRankSparse.readDocInfo();
-    
-            for (String docName: unfilteredPageranks.keySet()) {
-                if (index.containsKey(docName)) {
-                    pageranks.put(docName, unfilteredPageranks.get(docName));
-                }
-            }
+            pageranks = PageRankSparse.readDocInfo();
         }
         catch (IOException e) {
             e.printStackTrace();
