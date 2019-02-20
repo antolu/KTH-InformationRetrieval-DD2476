@@ -8,8 +8,10 @@
 
 package ir;
 
+import java.io.IOException;
 import java.util.HashMap;
-import java.util.Iterator;
+
+import pagerank.PageRankSparse;
 
 
 /**
@@ -21,6 +23,7 @@ public class HashedIndex implements Index {
     /** The index as a hashtable. */
     private HashMap<String,PostingsList> index = new HashMap<String,PostingsList>();
 
+    public HashMap<String, Double> pageranks = new HashMap<>();
 
     /**
      *  Inserts this token in the hashtable.
@@ -58,5 +61,17 @@ public class HashedIndex implements Index {
      *  No need for cleanup in a HashedIndex.
      */
     public void cleanup() {
+        try {
+        HashMap<String, Double> unfilteredPageranks = PageRankSparse.readDocInfo();
+
+        for (String docName: unfilteredPageranks.keySet()) {
+            if (index.containsKey(docName)) {
+                pageranks.put(docName, unfilteredPageranks.get(docName));
+            }
+        }
+    }
+    catch (IOException e) {
+        e.printStackTrace();
+    }
     }
 }

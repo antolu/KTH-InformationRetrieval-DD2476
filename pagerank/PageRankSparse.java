@@ -273,7 +273,7 @@ public class PageRankSparse {
 	 * 
 	 * @param a A vector
 	 */
-	static void writePageRanks(String[] docNames, double[] a) throws IOException {
+	public static void writePageRanks(String[] docNames, double[] a) throws IOException {
 
 		/** 1;blabla.f */
 		HashMap<String, String> realDocNames = new HashMap<>();
@@ -304,7 +304,7 @@ public class PageRankSparse {
      *
      * @throws IOException { exception_description }
      */
-    static HashMap<String, Double> readDocInfo() throws IOException {
+    public static HashMap<String, Double> readDocInfo() throws IOException {
 		HashMap<String, Double> pageranks = new HashMap<>();
 
         File file = new File(INDEXDIR + "/pageranks");

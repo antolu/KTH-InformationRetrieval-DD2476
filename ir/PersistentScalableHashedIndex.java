@@ -1,17 +1,19 @@
 package ir;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.zip.DataFormatException;
-import java.io.File;
-import java.io.BufferedReader;
-import java.io.FileReader;
+
+import pagerank.PageRankSparse;
 
 public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
@@ -489,6 +491,20 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
+        }
+
+        System.err.println("Reading pageranks from file...");
+        try {
+            HashMap<String, Double> unfilteredPageranks = PageRankSparse.readDocInfo();
+    
+            for (String docName: unfilteredPageranks.keySet()) {
+                if (index.containsKey(docName)) {
+                    pageranks.put(docName, unfilteredPageranks.get(docName));
+                }
+            }
+        }
+        catch (IOException e) {
+            e.printStackTrace();
         }
 
         System.err.println("[SUCCESS] Done!");
