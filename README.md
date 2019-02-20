@@ -179,3 +179,7 @@ docID!offset1,offset2,offset3
 ### 1.8
 
 The reason the query `queen of england` yields 364 (out of 364) matches in intersection query mode, but only 6 (out of 7) in phrase query mode, may be because of how the tokenizer works. Let's say that we have the phrase `queen of<england>` in the document, then the tokenizer may translate this to `queen`, `of`, `<`, `england` and `>`, where queen of england is no longer a contiguous phrase. 
+
+### 2.4
+
+Difficult case: documents with two or three words and a redirect, are they relevant or not?
