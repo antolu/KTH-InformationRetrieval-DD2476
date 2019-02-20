@@ -48,7 +48,7 @@ public class PageRankSparse {
 	 */
 	int[] out = new int[MAX_NUMBER_OF_DOCS];
 	
-    HashMap<Integer, LinkedHashMap<Integer, Double>> G = new HashMap<>();
+    Sparse G;
 
 	/**
 	 * The probability that the surfer will be bored, stop following links, and take
@@ -61,8 +61,6 @@ public class PageRankSparse {
 	 * EPSILON from one iteration to another.
 	 */
 	final static double EPSILON = 0.00001;
-
-	private int fileIndex = 0;
 
 	/**
 	 * A Pair implementation so one can sort
@@ -82,15 +80,45 @@ public class PageRankSparse {
         public int compareTo(Pair other) {
             return Double.compare(value, other.value);
         }
-    }
+	}
+	
+	protected class Sparse {
+		protected HashMap<Integer, LinkedHashMap<Integer, Double>> mtx = new HashMap<>();
+
+		protected int m;
+		protected int n;
+
+		/** Value for row if it its empty */
+		protected double emptyRowValue;
+
+		/** Value for row if it has non-zero entries */
+		protected double defaultRowValue;
+
+		public Sparse(int m, int n, double emptyRowValue, double defaultRowValue) {
+			this.emptyRowValue = emptyRowValue;
+			this.defaultRowValue = defaultRowValue;
+		}
+
+		public LinkedHashMap<Integer, Double> newRow(int i) {
+			LinkedHashMap<Integer, Double> row = new LinkedHashMap<>();
+
+			mtx.put(i, row);
+			return row;
+		}
+	}
 
 	/* --------------------------------------------- */
 
 	public PageRankSparse(String filename) {
 		int noOfDocs = readDocs(filename);
 		initiateProbabilityMatrix(noOfDocs);
-		// compareMatrices(G_mat, sparseToMatrix(1.0/noOfDocs));
-		iterate(noOfDocs, 1000);
+
+		long startTime = System.nanoTime();
+		double[] pagerank =  iterate(noOfDocs, 1000);
+		long endTime = System.nanoTime();
+
+		double duration = ((double)(endTime - startTime))/1000000000.0;
+		System.err.printf("Duration: %fs%n", duration);
 	}
 
 	/* --------------------------------------------- */
@@ -101,6 +129,7 @@ public class PageRankSparse {
 	 * @return the number of documents read.
 	 */
 	private int readDocs(String filename) {
+		int fileIndex = 0;
 		try {
 			System.err.print("Reading file... ");
 			BufferedReader in = new BufferedReader(new FileReader(filename));
@@ -162,12 +191,13 @@ public class PageRankSparse {
 	void initiateProbabilityMatrix(int numberOfDocs) {
 		final double NOT_BORED = 1.0 - BORED;
 
+		G = new Sparse(numberOfDocs, numberOfDocs, 1.0/numberOfDocs, BORED/numberOfDocs);
+
         for (int i = 0; i < numberOfDocs; i++) {
 			if (out[i] != 0) {
-				LinkedHashMap<Integer, Double> row = new LinkedHashMap<>();
+				LinkedHashMap<Integer, Double> row = G.newRow(i);
 				for (int j: link.get(i).keySet())
 					row.put(j, NOT_BORED / out[i]);
-				G.put(i, row);
 			}
 		}
     }
@@ -176,32 +206,30 @@ public class PageRankSparse {
 	 * Chooses a probability vector a, and repeatedly computes aP, aP^2, aP^3...
 	 * until aP^i = aP^(i+1).
 	 */
-	private void iterate(int numberOfDocs, int maxIterations) {
-		double[] a_old = new double[numberOfDocs];
+	private double[] iterate(int numberOfDocs, int maxIterations) {
+		double[] a_old;
 		double[] a = new double[numberOfDocs];
         a[0] = 1.0;
 
         int i = 0;
         double err = 10;
         while (err > EPSILON && i < maxIterations) {
-		// while (i < 30) {
 			System.err.println("Iteration: " + i);
             i++;
             a_old = a;
-            a = multiply(a, 1.0/numberOfDocs);
+            a = multiply(a, G);
 			normalize(a);
-			// for (int j = 0; j < 30; j++) 
-			// 	System.err.println(a[j]);
 
             err = distance(a_old, a);
         }
 
         System.err.println("Iterations: " + i);
 
-        getResults(a);
+		displayTopResults(a);
+        return a;
 	}
 
-    void getResults(double[] a) {
+    void displayTopResults(double[] a) {
         ArrayList<Pair> results = new ArrayList<>();
 
         for (int i = 0; i < a.length; i++) {
@@ -217,47 +245,21 @@ public class PageRankSparse {
             System.err.format(name + " %.5f%n", pair.value);
         }
 	}
-
-	private double[][] sparseToMatrix(double defaultValue) {
-		double[][] mat = new double[fileIndex][fileIndex];
-
-		double rowDefault = BORED /fileIndex;
-
-		for (int j = 0; j < fileIndex; j++) {
-			if (G.containsKey(j)) {
-				LinkedHashMap<Integer, Double> row = G.get(j);
-				for (Map.Entry<Integer, Double> e: row.entrySet()) {
-					mat[j][e.getKey()] = e.getValue(); 
-				}
-				for (int i = 0; i < fileIndex; i++) {
-					mat[j][i] += rowDefault;
-				}
-			} else {
-				for (int i = 0; i < fileIndex; i++) {
-					mat[j][i] = defaultValue;
-				}
-			}
-		}
-
-		return mat;
-	}
 	
-	private double[] multiply(double[] vec, double defaultValue) {
+	private static double[] multiply(double[] vec, Sparse G) {
 		double[] prod = new double[vec.length];
 
-		double rowDefault = BORED /fileIndex;
-
 		for (int j = 0; j < vec.length; j++) {
-			if (G.containsKey(j)) {
-				LinkedHashMap<Integer, Double> row = G.get(j);
+			if (G.mtx.containsKey(j)) {
+				LinkedHashMap<Integer, Double> row = G.mtx.get(j);
 				for (Map.Entry<Integer, Double> e: row.entrySet()) {
 					prod[e.getKey()] += vec[j] * e.getValue();
 				}
 				for (int i = 0; i < vec.length; i++) {
-					prod[i] += vec[j] * rowDefault;
+					prod[i] += vec[j] * G.defaultRowValue;
 				}
 			} else {
-				double val = vec[j] * defaultValue;
+				double val = vec[j] * G.emptyRowValue;
 				for (int i = 0; i < vec.length; i++) {
 					prod[i] += val;
 				}
@@ -294,19 +296,6 @@ public class PageRankSparse {
 
         return alignment;
 	}
-	
-	private void compareMatrices(Matrix a, double[][] b) {
-		for (int i = 0; i < a.m; i++) {
-			for (int j = 0; j < a.m; j++) {
-				if (Math.abs(a.mtx[i][j] - b[i][j]) > 0.0000001) {
-					System.err.println("(" + i + ", " + j + ")");
-					System.err.println(a.mtx[i][j] + " " + b[i][j]);
-					return;
-				}
-			}
-		}
-	}
-
 
 	/* --------------------------------------------- */
 
