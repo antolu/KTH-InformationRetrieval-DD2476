@@ -1,7 +1,13 @@
 package pagerank;
 
-import java.util.*;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Hashtable;
+import java.util.StringTokenizer;
 
 public class PageRank {
 
@@ -143,32 +149,24 @@ public class PageRank {
      * Initiates the probability matrix.
      */
     void initiateProbabilityMatrix(int numberOfDocs) {
-        Matrix J = Matrix.fillMatrix(MAX_NUMBER_OF_DOCS, MAX_NUMBER_OF_DOCS, BORED/(fileIndex-1));
+        Matrix J = Matrix.fillMatrix(numberOfDocs, numberOfDocs, BORED/numberOfDocs);
 
-        for (int i = 0; i < fileIndex-1; i++) {
-            for (int j = 0; j < fileIndex-1; j++) {
+        Matrix p_new = new Matrix(numberOfDocs, numberOfDocs);
+
+        for (int i = 0; i < numberOfDocs; i++) {
+            for (int j = 0; j < numberOfDocs; j++) {
                 if (p.mtx[i][j] == -1 && out[i] != 0) {
-                    p.mtx[i][j] = 1.0 / out[i];
+                    p_new.mtx[i][j] = 1.0 / out[i];
                 }
                 else if (out[i] == 0 ) {
-                    p.mtx[i][j] = 1.0 / (fileIndex-1);
+                    p_new.mtx[i][j] = 1.0 / numberOfDocs;
                 }
             }
-
-            for (int j = fileIndex; j < MAX_NUMBER_OF_DOCS; j++) {
-                J.mtx[i][j] = 0.0;
-            }
         }
 
-        for (int i = fileIndex; i < MAX_NUMBER_OF_DOCS; i++) {
-            for (int j = 0; j < MAX_NUMBER_OF_DOCS; j++) {
-                J.mtx[i][j] = 0.0;
-            }
-        }
+        Matrix.scalarMult(p_new, 1.0 - BORED);
 
-        Matrix.scalarMult(p, 1.0 - BORED);
-
-        G = Matrix.add(p, J);
+        G = Matrix.add(p_new, J);
     }
 
     /* --------------------------------------------- */
@@ -179,9 +177,9 @@ public class PageRank {
      */
     void iterate(int numberOfDocs, int maxIterations) {
 
-        Matrix a_old = Matrix.fillMatrix(1, MAX_NUMBER_OF_DOCS, 10);
-        Matrix a = new Matrix(1, MAX_NUMBER_OF_DOCS);
-        a.mtx[0][0] = 1;
+        Matrix a_old;
+        Matrix a = new Matrix(1, numberOfDocs);
+        a.mtx[0][0] = 1.0;
 
         int i = 0;
         double err = 10;
@@ -196,10 +194,10 @@ public class PageRank {
 
         System.err.println("Iterations: " + i);
 
-        getResults(a);
+        displayResults(a);
     }
 
-    void getResults(Matrix a) {
+    void displayResults(Matrix a) {
         ArrayList<Pair> results = new ArrayList<>();
 
         for (int i = 0; i < a.n; i++) {
