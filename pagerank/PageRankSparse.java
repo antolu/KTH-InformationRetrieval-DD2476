@@ -184,15 +184,16 @@ public class PageRankSparse {
 	/* --------------------------------------------- */
 
 	/**
-	 * Initializes the probability matrix p
+	 * Initializes the probability matrix G
 	 * 
-	 * @param int numberOfDocs
+	 * @param numberOfDocs Number of documents (size of G matrix)
 	 */
 	void initiateProbabilityMatrix(int numberOfDocs) {
 		final double NOT_BORED = 1.0 - BORED;
 
 		G = new Sparse(numberOfDocs, numberOfDocs, 1.0/numberOfDocs, BORED/numberOfDocs);
 
+		/** Calculate non-zero entries */
         for (int i = 0; i < numberOfDocs; i++) {
 			if (out[i] != 0) {
 				LinkedHashMap<Integer, Double> row = G.newRow(i);
@@ -202,9 +203,14 @@ public class PageRankSparse {
 		}
     }
 
-	/*
+	/** 
 	 * Chooses a probability vector a, and repeatedly computes aP, aP^2, aP^3...
 	 * until aP^i = aP^(i+1).
+	 * 
+	 * @param numberOfDocs Number of documents (size of matrix)
+	 * @param maxIterations Maximum number of iterations
+	 * 
+	 * @return The resulting vector from power iteration
 	 */
 	private double[] iterate(int numberOfDocs, int maxIterations) {
 		double[] a_old;
@@ -229,6 +235,11 @@ public class PageRankSparse {
         return a;
 	}
 
+	/**
+	 * Displays the top results of the pagerank
+	 * 
+	 * @param a The vector with pagerank values
+	 */
     void displayTopResults(double[] a) {
         ArrayList<Pair> results = new ArrayList<>();
 
@@ -246,6 +257,14 @@ public class PageRankSparse {
         }
 	}
 	
+	/**
+	 * Left multiplies a vector with a matrix
+	 * 
+	 * @param vec A one dimensional vector
+	 * @param G A sparse vector
+	 * 
+	 * @return The product of vec*G
+	 */
 	private static double[] multiply(double[] vec, Sparse G) {
 		double[] prod = new double[vec.length];
 
@@ -268,6 +287,12 @@ public class PageRankSparse {
 
 		return prod;
 	}
+
+	/**
+	 * Normalizes a vector with Manhattan length
+	 * 
+	 * @param a The vector to be normalized
+	 */
 	private static void normalize(double[] a) {
         
 		double norm = 0.0;
@@ -279,7 +304,17 @@ public class PageRankSparse {
 			a[i] /= norm;
 		}
 	}
-	
+
+	/**
+	 * Measures the euclidean distance between two vectors
+	 * 
+	 * @param a The first vector
+	 * @param b The second vector
+	 * 
+	 * @throws IllegalArgumentException when vector dimensions are imcompatible
+	 * 
+	 * @return The euclidean distance between the two vectors
+	 */
 	private static double distance(double[] a, double[] b) throws IllegalArgumentException {
 
         if (a.length != b.length) {
