@@ -28,6 +28,8 @@ public class Searcher {
     /** The k-gram index to be searched by this Searcher */
     KGramIndex kgIndex;
 
+    private static final Normalizer norm = Normalizer.EUCLIDEAN;
+
     /** Constructor */
     public Searcher(Index index, KGramIndex kgIndex) {
         this.index = index;
@@ -45,6 +47,11 @@ public class Searcher {
             return null;
 
         try {
+
+            if (queryType == QueryType.RANKED_QUERY) {
+                return getRankedQuery(query);
+            }
+
             // Not sufficient number of words for other query
             if (query.queryterm.size() < 2) {
                 return index.getPostings(query.queryterm.get(0).term);
@@ -54,6 +61,8 @@ public class Searcher {
                 return getIntersectionQuery(query, null);
             } else if (queryType == QueryType.PHRASE_QUERY) {
                 return getPhraseQuery(query);
+            } else if (queryType == QueryType.RANKED_QUERY) {
+                return getRankedQuery(query);
             } else {
 
                 String token = query.queryterm.get(0).term;
@@ -67,6 +76,106 @@ public class Searcher {
             return null;
         }
 
+    }
+
+    private PostingsList getRankedQuery(Query query) {
+
+        /** Build query vector */
+        ArrayList<Double> q = new ArrayList<>();
+
+        HashMap<String, Integer> tkns = new HashMap<>();
+        for (int i = 0; i < query.queryterm.size(); i++) {
+            if (!tkns.containsKey(query.queryterm.get(i).term))
+                q.add(1.0);
+            else {
+                int idx = tkns.get(query.queryterm.get(i).term);
+                q.set(idx, q.get(idx) + 1.0);
+            }
+        }
+
+        /** Normalize q */
+        int val = 0;
+        for (double d: q) {
+            if (norm == Normalizer.EUCLIDEAN)
+                val += Math.pow(d, 2);
+            else if (norm == Normalizer.MANHATTAN)
+                val += d;
+        }
+
+        for (int i = 0; i < q.size(); i++) {
+            double denominator = 1.0;
+            if (norm == Normalizer.EUCLIDEAN)
+                denominator = Math.sqrt(val);
+            else if (norm == Normalizer.MANHATTAN)
+                denominator = val;
+            q.set(i, q.get(i) / denominator);
+        }
+
+
+        ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
+        HashMap<Integer, PostingsEntry> scores = new HashMap<>();
+        HashMap<Integer, Double> denom = new HashMap<>();
+
+        /** <docID, index> */
+        int i = 0;
+        for (PhraseToken pt: postingsLists) {
+            PostingsList pl = pt.postingsList;
+            // int termID = Index.tokenIndex.get(postingsLists.get(0).token);
+            for (PostingsEntry pe: pl) {
+                // double tf = 1.0 + Math.log10(pe.getOccurences());
+                double tfidf = tfidf(pe, pl);
+
+                double score = q.get(i) * tfidf;
+
+                if (!scores.containsKey(pe.docID)) {
+                    scores.put(pe.docID, new PostingsEntry(pe.docID, score));
+
+                    if (norm == Normalizer.EUCLIDEAN)
+                        denom.put(pe.docID, Math.pow(tfidf, 2));
+                    else if (norm == Normalizer.MANHATTAN) {
+                        denom.put(pe.docID, tfidf);
+                    }
+                }
+                else {
+                    scores.get(pe.docID).score += score;
+
+                    if (norm == Normalizer.EUCLIDEAN)
+                        denom.put(pe.docID, denom.get(pe.docID) + Math.pow(tfidf, 2));
+                    else if (norm == Normalizer.MANHATTAN) {
+                        denom.put(pe.docID, denom.get(pe.docID) + tfidf);
+                    }
+                }
+            }
+            i++;
+        }
+
+        PostingsList results = new PostingsList();
+
+        /** Normalize score */
+        for (int docID: scores.keySet()) {
+            PostingsEntry pe = scores.get(docID);
+
+            if (norm == Normalizer.EUCLIDEAN)
+                // pe.score /= (Math.sqrt(denom.get(docID)));
+                pe.score /= Index.docLengths.get(pe.docID);
+            else if (norm == Normalizer.MANHATTAN) {
+                pe.score /= denom.get(docID);
+            }
+
+            results.add(pe);
+        }
+        
+        Collections.sort(results);
+
+        return results;
+    }
+
+    private double tfidf(PostingsEntry pe, PostingsList pl) {
+        double tf = pe.getOccurences();
+        double idf = Math.log10(Index.docNames.size() / pl.size());
+
+        double tfidf = tf * idf;
+        return tfidf;
     }
 
     /**
@@ -99,7 +208,7 @@ public class Searcher {
      * Finds the postings entries corresponding to the docIDs in `postingsList`.
      * 
      * @param query        The tokens to fetch postings entries for
-     * @param postingsList A list of docIDs to find postingsentries for
+     * @param postingsList A list of docIDs to find postings entries for
      * 
      * @return An ArrayList of PostingsLists with postings entries for each token in
      *         `query` and docID in `postingsList`.
@@ -315,7 +424,7 @@ public class Searcher {
     private ArrayList<PhraseToken> getPostingsLists(Query query) throws IllegalArgumentException {
         ArrayList<PhraseToken> postingsLists = new ArrayList<>();
 
-        // Retrive all postingsLists for query tokens
+        // Retrieve all postingsLists for query tokens
         for (int i = 0; i < query.queryterm.size(); i++) {
             String token = query.queryterm.get(i).term;
 

@@ -37,6 +37,11 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
         this.positionList.add(offset);
     }
 
+    public PostingsEntry(int docID, double score) {
+        this.docID = docID;
+        this.score = score;
+    }
+
     /**
      * @return the positionList
      */
@@ -50,6 +55,10 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
 
     public void reserveOffsetCapacity(int cap) {
         positionList.ensureCapacity(cap);
+    }
+
+    public int getOccurences() {
+        return positionList.size();
     }
 
     @Override
