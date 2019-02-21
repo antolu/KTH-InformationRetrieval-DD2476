@@ -132,9 +132,11 @@ public class MonteCarlo {
 
 		double[] mon1 = monteCarlo1(numberOfDocs, N);
 		double[] mon2 = monteCarlo2(numberOfDocs, N);
+		double[] mon4 = monteCarlo4(numberOfDocs, N);
 
 		results.add(mon1);
 		results.add(mon2);
+		results.add(mon4);
         return results;
 	}
 
@@ -189,6 +191,49 @@ public class MonteCarlo {
 		normalize(a);
 
 		return a;
+	}
+
+	private double[] monteCarlo4(int numberOfDocs, int N) {
+		double a[] = new double[numberOfDocs];
+
+		int m = N / numberOfDocs;
+		int n = numberOfDocs;
+
+		MutableInt totalVisited = new MutableInt();
+
+		for (int i = 0; i < n; i++) {
+			for (int j = 0; j < m; j++) {
+				mc4rec(a, i, totalVisited);
+			}
+		}
+
+		for (int i = 0; i < numberOfDocs; i++) {
+			a[i] /= totalVisited.i;
+		}
+
+		return a;
+	}
+
+	private void mc4rec(double[] a, int from, MutableInt totalVisited) {
+
+		Random rand = new Random();
+		totalVisited.i++;
+		a[from]++;
+
+		if (rand.nextDouble() > BORED) {
+			if (!G.mtx.containsKey(from)) {
+				return;
+			}
+
+			ArrayList<Integer> row = G.mtx.get(from);
+
+			int next = row.get(rand.nextInt(row.size()));
+	
+			mc4rec(a, next, totalVisited);
+			return;
+		} else {
+			return;
+		}
 	}
 
 	/**
@@ -338,7 +383,11 @@ public class MonteCarlo {
 		return fileIndex;
 	}
 
-		/**
+	private class MutableInt {
+		public int i = 0;
+	}
+
+	/**
 	 * A Pair implementation so one can sort
 	 * a list with regard to one value while
 	 * retaining reference to the second one. 
