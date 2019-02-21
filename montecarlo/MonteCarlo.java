@@ -133,10 +133,13 @@ public class MonteCarlo {
 		double[] mon1 = monteCarlo1(numberOfDocs, N);
 		double[] mon2 = monteCarlo2(numberOfDocs, N);
 		double[] mon4 = monteCarlo4(numberOfDocs, N);
+		double[] mon5 = monteCarlo5(numberOfDocs, N);
 
 		results.add(mon1);
 		results.add(mon2);
 		results.add(mon4);
+		results.add(mon5);
+		
         return results;
 	}
 
@@ -203,7 +206,7 @@ public class MonteCarlo {
 
 		for (int i = 0; i < n; i++) {
 			for (int j = 0; j < m; j++) {
-				mc4rec(a, i, totalVisited);
+				randomWalkMod(a, i, totalVisited);
 			}
 		}
 
@@ -214,7 +217,7 @@ public class MonteCarlo {
 		return a;
 	}
 
-	private void mc4rec(double[] a, int from, MutableInt totalVisited) {
+	private void randomWalkMod(double[] a, int from, MutableInt totalVisited) {
 
 		Random rand = new Random();
 		totalVisited.i++;
@@ -229,11 +232,30 @@ public class MonteCarlo {
 
 			int next = row.get(rand.nextInt(row.size()));
 	
-			mc4rec(a, next, totalVisited);
+			randomWalkMod(a, next, totalVisited);
 			return;
 		} else {
 			return;
 		}
+	}
+
+	private double[] monteCarlo5(int numberOfDocs, int N) {
+		double[] a = new double[numberOfDocs];
+
+		Random rand = new Random();
+
+		MutableInt totalVisited = new MutableInt();
+
+		for (int i = 0; i < N; i++) {
+			int start = rand.nextInt(numberOfDocs);
+			randomWalkMod(a, start, totalVisited);
+		}
+
+		for (int i = 0; i < numberOfDocs; i++) {
+			a[i] /= totalVisited.i;
+		}
+
+		return a;
 	}
 
 	/**
