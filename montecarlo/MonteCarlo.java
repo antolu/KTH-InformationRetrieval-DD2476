@@ -31,6 +31,7 @@ public class MonteCarlo {
 	String[] docName = new String[MAX_NUMBER_OF_DOCS];
 
 	private static final String INDEXDIR = "index/";
+	private static final String DATADIR = "data/";
 
 	/**
 	 * A memory-efficient representation of the transition matrix. The outlinks are
@@ -71,29 +72,14 @@ public class MonteCarlo {
 	/* --------------------------------------------- */
 
 	public MonteCarlo(String filename) {
-		int noOfDocs = readDocs(filename);
-		initiateProbabilityMatrix(noOfDocs);
-
-		long startTime = System.nanoTime();
-		ArrayList<double[]> results =  iterate(noOfDocs, NO_WALKS);
-		long endTime = System.nanoTime();
-
-		double duration = ((double)(endTime - startTime))/1000000000.0;
-		System.err.printf("Duration: %fs%n", duration);
-		// System.err.printf("Writing pageranks to file...%n");
-		// try {
-		// 	writePageranks(docName, pagerank);
-		// } catch (IOException e) {
-		// 	System.err.println("IOException! Write failed.");
-		// }
-		int i = 0;
-		for (double[] res: results) {
-			System.err.println("Monte Carlo " + ++i);
-			displayTopResults(res);
-			System.err.print("\n\n");
+		try {
+			int noOfDocs = readDocs(filename);
+			initiateProbabilityMatrix(noOfDocs);
+			Double[] reference = readReference();
+			iterate(reference, noOfDocs, NO_WALKS);
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
-
-		System.err.println("Done!");
 	}
 
 	/* --------------------------------------------- */
@@ -104,8 +90,6 @@ public class MonteCarlo {
 	 * @param numberOfDocs Number of documents (size of G matrix)
 	 */
 	void initiateProbabilityMatrix(int numberOfDocs) {
-		final double NOT_BORED = 1.0 - BORED;
-
 		G = new Sparse(numberOfDocs, numberOfDocs, 1.0/numberOfDocs, BORED/numberOfDocs);
 
 		/** Calculate non-zero entries */
@@ -127,19 +111,82 @@ public class MonteCarlo {
 	 * 
 	 * @return The resulting vector from power iteration
 	 */
-	private ArrayList<double[]> iterate(int numberOfDocs, int N) {
+	private void iterate(Double[] reference, int numberOfDocs, int N) {
+
+		ArrayList<ArrayList<Pair>> resultsData = new ArrayList<>();
+		ArrayList<ArrayList<Pair>> times = new ArrayList<>();
+
+		for (int i = 0; i < 4; i++) {
+			resultsData.add(new ArrayList<Pair>());
+			times.add(new ArrayList<Pair>());
+		}
+
+		double magnitude = (int) Math.ceil(Math.log10(numberOfDocs));
+		ArrayList<Integer> Ns = new ArrayList<>();
+
+		/** Determine which N run monte carlo for */
+		for (double mag = magnitude; mag <= magnitude + 2.0; mag++) {
+			for (double k = 1; k <= 10.0; k++) {
+				double n = k * Math.pow(10.0, mag);
+				Ns.add((int) n);
+			}
+		}
+
+		for (int n: Ns) {
+			long startTime = System.nanoTime();
+			ArrayList<double[]> NResults =  getResults(times, numberOfDocs, n);
+			long endTime = System.nanoTime();
+
+			double duration = ((double)(endTime - startTime))/1000000000.0;
+			System.err.printf("N = %d, duration: %fs%n", n, duration);
+
+			for (int i = 0; i < NResults.size(); i++) {
+				double[] res = NResults.get(i);
+				double goodness = distance(reference, res);
+				resultsData.get(i).add(new Pair(n, goodness));
+			}
+		}
+		try {
+			writeGoodnessData(resultsData, times);
+		} catch(IOException e) {
+			e.printStackTrace();
+		} catch(IllegalAccessException ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	private ArrayList<double[]> getResults(ArrayList<ArrayList<Pair>> times, int numberOfDocs, int N) {
 		ArrayList<double[]> results = new ArrayList<>();
 
+		long startTime = System.nanoTime();
 		double[] mon1 = monteCarlo1(numberOfDocs, N);
+		long endTime = System.nanoTime();
+		double duration = ((double)(endTime - startTime))/1000000000.0;
+		times.get(0).add(new Pair(N, duration));
+
+		startTime = System.nanoTime();
 		double[] mon2 = monteCarlo2(numberOfDocs, N);
+		endTime = System.nanoTime();
+		duration = ((double)(endTime - startTime))/1000000000.0;
+		times.get(1).add(new Pair(N, duration));
+
+		startTime = System.nanoTime();
 		double[] mon4 = monteCarlo4(numberOfDocs, N);
+		endTime = System.nanoTime();
+		duration = ((double)(endTime - startTime))/1000000000.0;
+		times.get(2).add(new Pair(N, duration));
+
+		startTime = System.nanoTime();
 		double[] mon5 = monteCarlo5(numberOfDocs, N);
+		endTime = System.nanoTime();
+		duration = ((double)(endTime - startTime))/1000000000.0;
+		times.get(3).add(new Pair(N, duration));
 
 		results.add(mon1);
 		results.add(mon2);
 		results.add(mon4);
 		results.add(mon5);
-		
+
         return results;
 	}
 
@@ -274,9 +321,9 @@ public class MonteCarlo {
 
         for (int i = 0; i < 30; i++) {
             Pair pair = results.get(i);
-            String name = docName[pair.docID];
+            String name = docName[pair.first];
 
-            System.err.format(name + " %.5f%n", pair.value);
+            System.err.format(name + " %.5f%n", pair.second);
         }
 	}
 
@@ -328,6 +375,54 @@ public class MonteCarlo {
             }
         }
 		freader.close();
+	}
+
+	public static void writeGoodnessData(ArrayList<ArrayList<Pair>> data, ArrayList<ArrayList<Pair>> times) throws IOException, IllegalAccessException {
+
+		if (data.isEmpty()) {
+			throw new IllegalArgumentException("Passed list is empty!");
+		}
+		for (int i = 0; i < data.size(); i++) {
+			FileOutputStream fout = new FileOutputStream(DATADIR + "/" + "goodnessMC" + i);
+			ArrayList<Pair> l = data.get(i);
+			for (Pair entry: l) {
+				String docInfoEntry = entry.first + "," + entry.second + "\n";
+				fout.write(docInfoEntry.getBytes());
+			}
+			fout.close();
+
+			FileOutputStream fout2 = new FileOutputStream(DATADIR + "/" + "timesMC" + i);
+			ArrayList<Pair> t = times.get(i);
+			for (Pair entry: t) {
+				String docInfoEntry = entry.first + "," + entry.second + "\n";
+				fout2.write(docInfoEntry.getBytes());
+			}
+			fout2.close();
+		}
+    }
+
+	    /**
+     * Reads the document names and document lengths from file, and put them in the
+     * appropriate data structures.
+     *
+     * @throws IOException { exception_description }
+     */
+    public static Double[] readReference() throws IOException {
+		ArrayList<Double> res = new ArrayList<>();
+
+        File file = new File(DATADIR + "/" + "referenceDavis");
+        FileReader freader = new FileReader(file);
+        try (BufferedReader br = new BufferedReader(freader)) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] data = line.split(";");
+                res.add(Double.parseDouble(data[1]));
+            }
+        }
+		freader.close();
+
+		Double[] resArray = new Double[res.size()];
+		return res.toArray(resArray);
 	}
 	
 		/**
@@ -405,6 +500,33 @@ public class MonteCarlo {
 		return fileIndex;
 	}
 
+	/**
+	 * Measures the euclidean distance between two vectors
+	 * 
+	 * @param a The first vector
+	 * @param b The second vector
+	 * 
+	 * @throws IllegalArgumentException when vector dimensions are imcompatible
+	 * 
+	 * @return The euclidean distance between the two vectors
+	 */
+	private static double distance(Double[] a, double[] b) throws IllegalArgumentException {
+
+        if (a.length != b.length) {
+            throw new IllegalArgumentException("Incompatible dimensions: " + a.length + ", " + b.length);
+        }
+
+        double alignment = 0.0;
+        
+        for (int i = 0; i < a.length; i++){
+            alignment += Math.pow(a[i] - b[i], 2);
+        }
+
+        alignment = Math.sqrt(alignment);
+
+        return alignment;
+	}
+
 	private class MutableInt {
 		public int i = 0;
 	}
@@ -415,17 +537,17 @@ public class MonteCarlo {
 	 * retaining reference to the second one. 
 	*/
 	private class Pair implements Comparable<Pair> {
-        public int docID = 0;
-        public double value = 0.0;
+        public int first = 0;
+        public double second = 0.0;
 
         public Pair(int docID, double value) {
-            this.docID = docID;
-            this.value = value;
+            this.first = docID;
+            this.second = value;
         }
 
         @Override
         public int compareTo(Pair other) {
-            return Double.compare(value, other.value);
+            return Double.compare(second, other.second);
         }
 	}
 	
