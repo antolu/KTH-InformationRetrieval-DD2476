@@ -76,7 +76,6 @@ public class PersistentHashedIndex implements Index {
 
     /** The cache as a main-memory hash map. */
     HashMap<String, PostingsList> index = new HashMap<String, PostingsList>();
-    protected HashMap<String, Double> pageranks = new HashMap<>();
 
     protected int noUniqueTokens = 0;
 
@@ -126,6 +125,7 @@ public class PersistentHashedIndex implements Index {
         try {
             readDocInfo();
             readTokenIndex();
+            PageRankSparse.readPageranks(pageranks);
         } catch (FileNotFoundException e) {
         } catch (ArrayIndexOutOfBoundsException e) {
         } catch (IOException e) {
@@ -427,12 +427,6 @@ public class PersistentHashedIndex implements Index {
         try {
             writeTokenIndex();
         } catch (IOException e) {
-            e.printStackTrace();
-        }
-        try {
-            pageranks = PageRankSparse.readDocInfo();
-        }
-        catch (IOException e) {
             e.printStackTrace();
         }
         System.err.println("[SUCCESS] Done!");

@@ -13,8 +13,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.DataFormatException;
 
-import pagerank.PageRankSparse;
-
 public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
     /** How many documents should be processed to invoke a merge. Default 8192 */
@@ -491,14 +489,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
-        }
-
-        System.err.println("Reading pageranks from file...");
-        try {
-            pageranks = PageRankSparse.readDocInfo();
-        }
-        catch (IOException e) {
-            e.printStackTrace();
         }
 
         System.err.println("[SUCCESS] Done!");

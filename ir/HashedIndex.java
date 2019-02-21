@@ -23,7 +23,14 @@ public class HashedIndex implements Index {
     /** The index as a hashtable. */
     private HashMap<String,PostingsList> index = new HashMap<String,PostingsList>();
 
-    public HashMap<String, Double> pageranks = new HashMap<>();
+    public HashedIndex() {
+        try {
+            PageRankSparse.readPageranks(pageranks);
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      *  Inserts this token in the hashtable.
@@ -61,11 +68,5 @@ public class HashedIndex implements Index {
      *  No need for cleanup in a HashedIndex.
      */
     public void cleanup() {
-        try {
-        pageranks = PageRankSparse.readDocInfo();
-    }
-    catch (IOException e) {
-        e.printStackTrace();
-    }
     }
 }

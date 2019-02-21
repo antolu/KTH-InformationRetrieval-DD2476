@@ -125,7 +125,7 @@ public class PageRankSparse {
 		System.err.printf("Duration: %fs%n", duration);
 		System.err.printf("Writing pageranks to file...%n");
 		try {
-			writePageRanks(docName, pagerank);
+			writePageranks(docName, pagerank);
 		} catch (IOException e) {
 			System.err.println("IOException! Write failed.");
 		}
@@ -273,7 +273,7 @@ public class PageRankSparse {
 	 * 
 	 * @param a A vector
 	 */
-	public static void writePageRanks(String[] docNames, double[] a) throws IOException {
+	public static void writePageranks(String[] docNames, double[] a) throws IOException {
 
 		/** 1;blabla.f */
 		HashMap<String, String> realDocNames = new HashMap<>();
@@ -304,8 +304,7 @@ public class PageRankSparse {
      *
      * @throws IOException { exception_description }
      */
-    public static HashMap<String, Double> readDocInfo() throws IOException {
-		HashMap<String, Double> pageranks = new HashMap<>();
+    public static void readPageranks(HashMap<String, Double> map) throws IOException {
 
         File file = new File(INDEXDIR + "/pageranks");
         FileReader freader = new FileReader(file);
@@ -313,12 +312,10 @@ public class PageRankSparse {
             String line;
             while ((line = br.readLine()) != null) {
                 String[] data = line.split(";");
-                pageranks.put(data[0], Double.parseDouble(data[1]));
+                map.put(data[0], Double.parseDouble(data[1]));
             }
         }
 		freader.close();
-		
-		return pageranks;
     }
 	/**
 	 * Left multiplies a vector with a matrix
