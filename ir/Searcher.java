@@ -8,14 +8,13 @@
 package ir;
 
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.NoSuchElementException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.NoSuchElementException;
 
 /**
  * Searches an index for results of a query.
@@ -29,6 +28,9 @@ public class Searcher {
     KGramIndex kgIndex;
 
     private static final Normalizer norm = Normalizer.EUCLIDEAN;
+
+    /** How much the tfidf weigths during ranked query */
+    private static final double RANK_WEIGHT = 0.1;
 
     /** Constructor */
     public Searcher(Index index, KGramIndex kgIndex) {
@@ -49,7 +51,13 @@ public class Searcher {
         try {
 
             if (queryType == QueryType.RANKED_QUERY) {
-                return getRankedQuery(query);
+                if (rankingType == RankingType.TF_IDF) {
+                    return getTfidfQuery(query);
+                } else if (rankingType == RankingType.COMBINATION) {
+                    return getCombinedQuery(query);
+                } else if (rankingType == RankingType.PAGERANK) {
+                    return getPagerankQuery(query);
+                }
             }
 
             // Not sufficient number of words for other query
@@ -61,8 +69,6 @@ public class Searcher {
                 return getIntersectionQuery(query, null);
             } else if (queryType == QueryType.PHRASE_QUERY) {
                 return getPhraseQuery(query);
-            } else if (queryType == QueryType.RANKED_QUERY) {
-                return getRankedQuery(query);
             } else {
 
                 String token = query.queryterm.get(0).term;
@@ -78,7 +84,7 @@ public class Searcher {
 
     }
 
-    private PostingsList getRankedQuery(Query query) {
+    private PostingsList getTfidfQuery(Query query) {
 
         /** Build query vector */
         ArrayList<Double> q = new ArrayList<>();
@@ -175,6 +181,52 @@ public class Searcher {
         double idf = Math.log10(Index.docNames.size() / pl.size());
 
         double tfidf = tf * idf;
+        return tfidf;
+    }
+
+    private PostingsList getPagerankQuery(Query query) {
+        ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
+
+        HashSet<Integer> savedDocIDs = new HashSet<>();
+
+        PostingsList results = new PostingsList();
+
+        for (PhraseToken pt: postingsLists) {
+            PostingsList pl = pt.postingsList;
+            for (PostingsEntry pe: pl) {
+                if (!savedDocIDs.contains(pe.docID)) {
+                    String docName = Index.docNames.get(pe.docID);
+                    String strippedDocName = docName.substring(docName.indexOf("/")+1);
+                    pe.score = Index.pageranks.get(strippedDocName);
+                    results.add(pe);
+
+                    savedDocIDs.add(pe.docID);
+                }
+            }
+        }
+
+        Collections.sort(results);
+
+        return results;
+    }
+
+    private PostingsList getCombinedQuery(Query query) {
+        PostingsList tfidf = getTfidfQuery(query);
+
+        double norm = 0.0;
+        for (PostingsEntry pe: tfidf) {
+            norm += pe.score;
+        }
+
+
+        for (PostingsEntry pe: tfidf) {
+            String docName = Index.docNames.get(pe.docID);
+            String strippedDocName = docName.substring(docName.indexOf("/")+1);
+            pe.score = RANK_WEIGHT * pe.score/norm + (1.0-RANK_WEIGHT) * Index.pageranks.get(strippedDocName);
+        }
+
+        Collections.sort(tfidf);
+
         return tfidf;
     }
 

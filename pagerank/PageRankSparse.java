@@ -1,7 +1,9 @@
 package pagerank;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,6 +30,8 @@ public class PageRankSparse {
 	 * Mapping from document numbers to document names
 	 */
 	String[] docName = new String[MAX_NUMBER_OF_DOCS];
+
+	private static final String INDEXDIR = "index/";
 
 	/**
 	 * A memory-efficient representation of the transition matrix. The outlinks are
@@ -119,6 +123,13 @@ public class PageRankSparse {
 
 		double duration = ((double)(endTime - startTime))/1000000000.0;
 		System.err.printf("Duration: %fs%n", duration);
+		System.err.printf("Writing pageranks to file...%n");
+		try {
+			writePageranks(docName, pagerank);
+		} catch (IOException e) {
+			System.err.println("IOException! Write failed.");
+		}
+		System.err.println("Done!");
 	}
 
 	/* --------------------------------------------- */
@@ -256,7 +267,56 @@ public class PageRankSparse {
             System.err.format(name + " %.5f%n", pair.value);
         }
 	}
-	
+
+	/**
+	 * Writes the pageranks in vector a to disk
+	 * 
+	 * @param a A vector
+	 */
+	public static void writePageranks(String[] docNames, double[] a) throws IOException {
+
+		/** 1;blabla.f */
+		HashMap<String, String> realDocNames = new HashMap<>();
+        File file = new File(INDEXDIR + "/davisTitles.txt");
+        FileReader freader = new FileReader(file);
+        try (BufferedReader br = new BufferedReader(freader)) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] data = line.split(";");
+                realDocNames.put(data[0], data[1]);
+            }
+        }
+		freader.close();
+
+
+        FileOutputStream fout = new FileOutputStream(INDEXDIR + "/pageranks");
+        for (int i = 0; i < a.length; i++) {
+            String docName = realDocNames.get(docNames[i]);
+            String docInfoEntry = docName + ";" + a[i] + "\n";
+            fout.write(docInfoEntry.getBytes());
+        }
+        fout.close();
+    }
+
+    /**
+     * Reads the document names and document lengths from file, and put them in the
+     * appropriate data structures.
+     *
+     * @throws IOException { exception_description }
+     */
+    public static void readPageranks(HashMap<String, Double> map) throws IOException {
+
+        File file = new File(INDEXDIR + "/pageranks");
+        FileReader freader = new FileReader(file);
+        try (BufferedReader br = new BufferedReader(freader)) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] data = line.split(";");
+                map.put(data[0], Double.parseDouble(data[1]));
+            }
+        }
+		freader.close();
+    }
 	/**
 	 * Left multiplies a vector with a matrix
 	 * 

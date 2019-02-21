@@ -8,8 +8,10 @@
 
 package ir;
 
+import java.io.IOException;
 import java.util.HashMap;
-import java.util.Iterator;
+
+import pagerank.PageRankSparse;
 
 
 /**
@@ -21,6 +23,14 @@ public class HashedIndex implements Index {
     /** The index as a hashtable. */
     private HashMap<String,PostingsList> index = new HashMap<String,PostingsList>();
 
+    public HashedIndex() {
+        try {
+            PageRankSparse.readPageranks(pageranks);
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      *  Inserts this token in the hashtable.

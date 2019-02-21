@@ -1,17 +1,17 @@
 package ir;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.zip.DataFormatException;
-import java.io.File;
-import java.io.BufferedReader;
-import java.io.FileReader;
 
 public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 

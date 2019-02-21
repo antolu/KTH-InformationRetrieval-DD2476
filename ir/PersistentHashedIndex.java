@@ -7,14 +7,21 @@
 
 package ir;
 
-import java.io.*;
-import java.util.*;
-import java.nio.charset.*;
-import java.lang.Long;
-import java.lang.Integer;
-import java.util.zip.DataFormatException;
-import java.util.Arrays;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.zip.DataFormatException;
+
+import pagerank.PageRankSparse;
 
 /*
  *   Implements an inverted index as a hashtable on disk.
@@ -69,6 +76,7 @@ public class PersistentHashedIndex implements Index {
 
     /** The cache as a main-memory hash map. */
     HashMap<String, PostingsList> index = new HashMap<String, PostingsList>();
+
     protected int noUniqueTokens = 0;
 
     // ===================================================================
@@ -117,6 +125,7 @@ public class PersistentHashedIndex implements Index {
         try {
             readDocInfo();
             readTokenIndex();
+            PageRankSparse.readPageranks(pageranks);
         } catch (FileNotFoundException e) {
         } catch (ArrayIndexOutOfBoundsException e) {
         } catch (IOException e) {
