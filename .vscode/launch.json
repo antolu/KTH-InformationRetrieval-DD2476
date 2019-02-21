@@ -81,6 +81,19 @@
             "args": [
                 "pagerank/linksDavis.txt"
             ]
+        },
+        {
+            "type": "java",
+            "name": "Debug - MonteCarlo",
+            "request": "launch",
+            "cwd": "${workspaceRoot}",
+            "classPaths": [
+                "build"
+            ],
+            "mainClass": "montecarlo.MonteCarlo",
+            "args": [
+                "pagerank/linksSvwiki.txt"
+            ]
         }
     ]
 }
