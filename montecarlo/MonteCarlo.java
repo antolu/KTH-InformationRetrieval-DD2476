@@ -65,7 +65,8 @@ public class MonteCarlo {
 	 */
 	final static double EPSILON = 0.00001;
 
-	final static int NO_WALKS = 100000000;
+	/** Number of walks */
+	final static int NO_WALKS = 10000000;
 
 	/**
 	 * A Pair implementation so one can sort
@@ -119,7 +120,7 @@ public class MonteCarlo {
 		initiateProbabilityMatrix(noOfDocs);
 
 		long startTime = System.nanoTime();
-		double[] pagerank =  iterate(noOfDocs, NO_WALKS);
+		ArrayList<double[]> results =  iterate(noOfDocs, NO_WALKS);
 		long endTime = System.nanoTime();
 
 		double duration = ((double)(endTime - startTime))/1000000000.0;
@@ -134,6 +135,170 @@ public class MonteCarlo {
 	}
 
 	/* --------------------------------------------- */
+
+	/**
+	 * Initializes the probability matrix G
+	 * 
+	 * @param numberOfDocs Number of documents (size of G matrix)
+	 */
+	void initiateProbabilityMatrix(int numberOfDocs) {
+		final double NOT_BORED = 1.0 - BORED;
+
+		G = new Sparse(numberOfDocs, numberOfDocs, 1.0/numberOfDocs, BORED/numberOfDocs);
+
+		/** Calculate non-zero entries */
+        for (int i = 0; i < numberOfDocs; i++) {
+			if (out[i] != 0) {
+				ArrayList<Integer> row = G.newRow(i);
+				for (int j: link.get(i).keySet())
+					row.add(j);
+			}
+		}
+    }
+
+	/** 
+	 * Chooses a probability vector a, and repeatedly computes aP, aP^2, aP^3...
+	 * until aP^i = aP^(i+1).
+	 * 
+	 * @param numberOfDocs Number of documents (size of matrix)
+	 * @param maxIterations Maximum number of iterations
+	 * 
+	 * @return The resulting vector from power iteration
+	 */
+	private ArrayList<double[]> iterate(int numberOfDocs, int N) {
+		ArrayList<double[]> results = new ArrayList<>();
+
+		double[] mon1 = monteCarlo1(numberOfDocs, N);
+
+		results.add(mon1);
+        return results;
+	}
+
+	private double[] monteCarlo1(int numberOfDocs, int N) {
+		double[] a = new double[numberOfDocs];
+
+		Random rand = new Random();
+
+		for (int i = 0; i < N; i++) {
+			int start = rand.nextInt(numberOfDocs);
+			monteCarlo1rec(a, start);
+		}
+
+		normalize(a);
+
+		// displayTopResults(a);
+		return a;
+	}
+	private void monteCarlo1rec(double[] a, int from) {
+
+		Random rand = new Random();
+
+		if (rand.nextDouble() > BORED) {
+			if (!G.mtx.containsKey(from)) {
+				a[from]++;
+				return;
+			}
+
+			ArrayList<Integer> row = G.mtx.get(from);
+
+			int next = row.get(rand.nextInt(row.size()));
+	
+			monteCarlo1rec(a, next);
+			return;
+		} else {
+			a[from]++;
+			return;
+		}
+	}
+
+	/**
+	 * Displays the top results of the pagerank
+	 * 
+	 * @param a The vector with pagerank values
+	 */
+    void displayTopResults(double[] a) {
+        ArrayList<Pair> results = new ArrayList<>();
+
+        for (int i = 0; i < a.length; i++) {
+            results.add(new Pair(i, a[i]));
+        }
+
+        Collections.sort(results, Collections.reverseOrder());
+
+        for (int i = 0; i < 30; i++) {
+            Pair pair = results.get(i);
+            String name = docName[pair.docID];
+
+            System.err.format(name + " %.5f%n", pair.value);
+        }
+	}
+
+	/**
+	 * Writes the pageranks in vector a to disk
+	 * 
+	 * @param a A vector
+	 */
+	public static void writePageranks(String[] docNames, double[] a, String fileName) throws IOException {
+
+		/** 1;blabla.f */
+		HashMap<String, String> realDocNames = new HashMap<>();
+        File file = new File(INDEXDIR + "/SvwikiTitles.txt");
+        FileReader freader = new FileReader(file);
+        try (BufferedReader br = new BufferedReader(freader)) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] data = line.split(";");
+                realDocNames.put(data[0], data[1]);
+            }
+        }
+		freader.close();
+
+
+        FileOutputStream fout = new FileOutputStream(INDEXDIR + "/" + fileName);
+        for (int i = 0; i < a.length; i++) {
+            String docName = realDocNames.get(docNames[i]);
+            String docInfoEntry = docName + ";" + a[i] + "\n";
+            fout.write(docInfoEntry.getBytes());
+        }
+        fout.close();
+    }
+
+    /**
+     * Reads the document names and document lengths from file, and put them in the
+     * appropriate data structures.
+     *
+     * @throws IOException { exception_description }
+     */
+    public static void readPageranks(HashMap<String, Double> map, String fileName) throws IOException {
+
+        File file = new File(INDEXDIR + "/" + fileName);
+        FileReader freader = new FileReader(file);
+        try (BufferedReader br = new BufferedReader(freader)) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] data = line.split(";");
+                map.put(data[0], Double.parseDouble(data[1]));
+            }
+        }
+		freader.close();
+	}
+	
+		/**
+	 * Normalizes a vector with Manhattan length
+	 * 
+	 * @param a The vector to be normalized
+	 */
+	private static void normalize(double[] a) {
+        
+		double norm = 0.0;
+        for (int i = 0; i < a.length; i++){
+			norm += a[i];
+		}
+		
+		for (int i = 0; i < a.length; i++){
+			a[i] /= norm;
+		}
+	}
 
 	/**
 	 * Reads the documents and fills the data structures.
@@ -191,164 +356,6 @@ public class MonteCarlo {
 		}
 		System.err.println("Read " + fileIndex + " number of documents");
 		return fileIndex;
-	}
-
-	/* --------------------------------------------- */
-
-	/**
-	 * Initializes the probability matrix G
-	 * 
-	 * @param numberOfDocs Number of documents (size of G matrix)
-	 */
-	void initiateProbabilityMatrix(int numberOfDocs) {
-		final double NOT_BORED = 1.0 - BORED;
-
-		G = new Sparse(numberOfDocs, numberOfDocs, 1.0/numberOfDocs, BORED/numberOfDocs);
-
-		/** Calculate non-zero entries */
-        for (int i = 0; i < numberOfDocs; i++) {
-			if (out[i] != 0) {
-				ArrayList<Integer> row = G.newRow(i);
-				for (int j: link.get(i).keySet())
-					row.add(j);
-			}
-		}
-    }
-
-	/** 
-	 * Chooses a probability vector a, and repeatedly computes aP, aP^2, aP^3...
-	 * until aP^i = aP^(i+1).
-	 * 
-	 * @param numberOfDocs Number of documents (size of matrix)
-	 * @param maxIterations Maximum number of iterations
-	 * 
-	 * @return The resulting vector from power iteration
-	 */
-	private double[] iterate(int numberOfDocs, int N) {
-		double[] a = new double[numberOfDocs];
-
-		Random rand = new Random();
-
-		for (int i = 0; i < numberOfDocs; i++) {
-			int start = rand.nextInt(numberOfDocs);
-			monteCarlo(a, start);
-		}
-
-		normalize(a);
-
-		displayTopResults(a);
-        return a;
-	}
-
-	private void monteCarlo(double[] a, int from) {
-
-		Random rand = new Random();
-
-		if (rand.nextDouble() > BORED) {
-			if (!G.mtx.containsKey(from)) {
-				a[from]++;
-				return;
-			}
-
-			ArrayList<Integer> row = G.mtx.get(from);
-
-			int next = row.get(rand.nextInt(row.size()));
-	
-			monteCarlo(a, next);
-			return;
-		} else {
-			a[from]++;
-			return;
-		}
-	}
-
-	/**
-	 * Displays the top results of the pagerank
-	 * 
-	 * @param a The vector with pagerank values
-	 */
-    void displayTopResults(double[] a) {
-        ArrayList<Pair> results = new ArrayList<>();
-
-        for (int i = 0; i < a.length; i++) {
-            results.add(new Pair(i, a[i]));
-        }
-
-        Collections.sort(results, Collections.reverseOrder());
-
-        for (int i = 0; i < 30; i++) {
-            Pair pair = results.get(i);
-            String name = docName[pair.docID];
-
-            System.err.format(name + " %.5f%n", pair.value);
-        }
-	}
-
-	/**
-	 * Writes the pageranks in vector a to disk
-	 * 
-	 * @param a A vector
-	 */
-	public static void writePageranks(String[] docNames, double[] a) throws IOException {
-
-		/** 1;blabla.f */
-		HashMap<String, String> realDocNames = new HashMap<>();
-        File file = new File(INDEXDIR + "/davisTitles.txt");
-        FileReader freader = new FileReader(file);
-        try (BufferedReader br = new BufferedReader(freader)) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] data = line.split(";");
-                realDocNames.put(data[0], data[1]);
-            }
-        }
-		freader.close();
-
-
-        FileOutputStream fout = new FileOutputStream(INDEXDIR + "/pageranks");
-        for (int i = 0; i < a.length; i++) {
-            String docName = realDocNames.get(docNames[i]);
-            String docInfoEntry = docName + ";" + a[i] + "\n";
-            fout.write(docInfoEntry.getBytes());
-        }
-        fout.close();
-    }
-
-    /**
-     * Reads the document names and document lengths from file, and put them in the
-     * appropriate data structures.
-     *
-     * @throws IOException { exception_description }
-     */
-    public static void readPageranks(HashMap<String, Double> map) throws IOException {
-
-        File file = new File(INDEXDIR + "/pageranks");
-        FileReader freader = new FileReader(file);
-        try (BufferedReader br = new BufferedReader(freader)) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] data = line.split(";");
-                map.put(data[0], Double.parseDouble(data[1]));
-            }
-        }
-		freader.close();
-	}
-	
-		/**
-	 * Normalizes a vector with Manhattan length
-	 * 
-	 * @param a The vector to be normalized
-	 */
-	private static void normalize(double[] a) {
-        
-		double norm = 0.0;
-        for (int i = 0; i < a.length; i++){
-			norm += a[i];
-		}
-		
-		for (int i = 0; i < a.length; i++){
-			a[i] /= norm;
-		}
 	}
 
 	/* --------------------------------------------- */
