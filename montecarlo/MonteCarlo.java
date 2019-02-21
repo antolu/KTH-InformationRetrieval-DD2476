@@ -68,51 +68,6 @@ public class MonteCarlo {
 	/** Number of walks */
 	final static int NO_WALKS = 10000000;
 
-	/**
-	 * A Pair implementation so one can sort
-	 * a list with regard to one value while
-	 * retaining reference to the second one. 
-	*/
-	private class Pair implements Comparable<Pair> {
-        public int docID = 0;
-        public double value = 0.0;
-
-        public Pair(int docID, double value) {
-            this.docID = docID;
-            this.value = value;
-        }
-
-        @Override
-        public int compareTo(Pair other) {
-            return Double.compare(value, other.value);
-        }
-	}
-	
-	protected class Sparse {
-		protected HashMap<Integer, ArrayList<Integer>> mtx = new HashMap<>();
-
-		protected int m;
-		protected int n;
-
-		/** Value for row if it its empty */
-		protected double emptyRowValue;
-
-		/** Value for row if it has non-zero entries */
-		protected double defaultRowValue;
-
-		public Sparse(int m, int n, double emptyRowValue, double defaultRowValue) {
-			this.emptyRowValue = emptyRowValue;
-			this.defaultRowValue = defaultRowValue;
-		}
-
-		public ArrayList<Integer> newRow(int i) {
-			ArrayList<Integer> row = new ArrayList<>();
-
-			mtx.put(i, row);
-			return row;
-		}
-	}
-
 	/* --------------------------------------------- */
 
 	public MonteCarlo(String filename) {
@@ -131,6 +86,13 @@ public class MonteCarlo {
 		// } catch (IOException e) {
 		// 	System.err.println("IOException! Write failed.");
 		// }
+		int i = 0;
+		for (double[] res: results) {
+			System.err.println("Monte Carlo " + ++i);
+			displayTopResults(res);
+			System.err.print("\n\n");
+		}
+
 		System.err.println("Done!");
 	}
 
@@ -169,8 +131,10 @@ public class MonteCarlo {
 		ArrayList<double[]> results = new ArrayList<>();
 
 		double[] mon1 = monteCarlo1(numberOfDocs, N);
+		double[] mon2 = monteCarlo2(numberOfDocs, N);
 
 		results.add(mon1);
+		results.add(mon2);
         return results;
 	}
 
@@ -181,15 +145,14 @@ public class MonteCarlo {
 
 		for (int i = 0; i < N; i++) {
 			int start = rand.nextInt(numberOfDocs);
-			monteCarlo1rec(a, start);
+			randomWalk(a, start);
 		}
 
 		normalize(a);
 
-		// displayTopResults(a);
 		return a;
 	}
-	private void monteCarlo1rec(double[] a, int from) {
+	private void randomWalk(double[] a, int from) {
 
 		Random rand = new Random();
 
@@ -203,12 +166,29 @@ public class MonteCarlo {
 
 			int next = row.get(rand.nextInt(row.size()));
 	
-			monteCarlo1rec(a, next);
+			randomWalk(a, next);
 			return;
 		} else {
 			a[from]++;
 			return;
 		}
+	}
+
+	private double[] monteCarlo2(int numberOfDocs, int N) {
+		double a[] = new double[numberOfDocs];
+
+		int m = N / numberOfDocs;
+		int n = numberOfDocs;
+
+		for (int i = 0; i < n; i++) {
+			for (int j = 0; j < m; j++) {
+				randomWalk(a, i);
+			}
+		}
+
+		normalize(a);
+
+		return a;
 	}
 
 	/**
@@ -356,6 +336,51 @@ public class MonteCarlo {
 		}
 		System.err.println("Read " + fileIndex + " number of documents");
 		return fileIndex;
+	}
+
+		/**
+	 * A Pair implementation so one can sort
+	 * a list with regard to one value while
+	 * retaining reference to the second one. 
+	*/
+	private class Pair implements Comparable<Pair> {
+        public int docID = 0;
+        public double value = 0.0;
+
+        public Pair(int docID, double value) {
+            this.docID = docID;
+            this.value = value;
+        }
+
+        @Override
+        public int compareTo(Pair other) {
+            return Double.compare(value, other.value);
+        }
+	}
+	
+	protected class Sparse {
+		protected HashMap<Integer, ArrayList<Integer>> mtx = new HashMap<>();
+
+		protected int m;
+		protected int n;
+
+		/** Value for row if it its empty */
+		protected double emptyRowValue;
+
+		/** Value for row if it has non-zero entries */
+		protected double defaultRowValue;
+
+		public Sparse(int m, int n, double emptyRowValue, double defaultRowValue) {
+			this.emptyRowValue = emptyRowValue;
+			this.defaultRowValue = defaultRowValue;
+		}
+
+		public ArrayList<Integer> newRow(int i) {
+			ArrayList<Integer> row = new ArrayList<>();
+
+			mtx.put(i, row);
+			return row;
+		}
 	}
 
 	/* --------------------------------------------- */
