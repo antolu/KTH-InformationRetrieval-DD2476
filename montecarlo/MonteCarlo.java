@@ -19,6 +19,7 @@ public class MonteCarlo {
 	 * than we can keep in main memory.
 	 */
 	final static int MAX_NUMBER_OF_DOCS = 2000000;
+	final static int NO_REFERENCE_COMPARISONS = 30;
 
 	/**
 	 * Mapping from document names to document numbers.
@@ -113,6 +114,14 @@ public class MonteCarlo {
 	 */
 	private void iterate(Double[] reference, int numberOfDocs, int N) {
 
+		ArrayList<Pair> referenceSorted = new ArrayList<>();
+
+		for (int i = 0; i < reference.length; i++) {
+			referenceSorted.add(new Pair(i, reference[i]));
+		}
+
+		Collections.sort(referenceSorted, Collections.reverseOrder());
+
 		ArrayList<ArrayList<Pair>> resultsData = new ArrayList<>();
 		ArrayList<ArrayList<Pair>> times = new ArrayList<>();
 
@@ -121,7 +130,7 @@ public class MonteCarlo {
 			times.add(new ArrayList<Pair>());
 		}
 
-		double magnitude = (int) Math.ceil(Math.log10(numberOfDocs));
+		double magnitude = (int) Math.floor(Math.log10(numberOfDocs));
 		ArrayList<Integer> Ns = new ArrayList<>();
 
 		/** Determine which N run monte carlo for */
@@ -131,6 +140,8 @@ public class MonteCarlo {
 				Ns.add((int) n);
 			}
 		}
+
+		// Ns.add(1000000);
 
 		for (int n: Ns) {
 			long startTime = System.nanoTime();
@@ -142,7 +153,7 @@ public class MonteCarlo {
 
 			for (int i = 0; i < NResults.size(); i++) {
 				double[] res = NResults.get(i);
-				double goodness = distance(reference, res);
+				double goodness = distance(referenceSorted, res);
 				resultsData.get(i).add(new Pair(n, goodness));
 			}
 		}
@@ -197,20 +208,21 @@ public class MonteCarlo {
 
 		for (int i = 0; i < N; i++) {
 			int start = rand.nextInt(numberOfDocs);
-			randomWalk(a, start);
+			randomWalk(a, start, numberOfDocs);
 		}
 
 		normalize(a);
 
 		return a;
 	}
-	private void randomWalk(double[] a, int from) {
+	private void randomWalk(double[] a, int from, int numberOfDocs) {
 
 		Random rand = new Random();
 
 		if (rand.nextDouble() > BORED) {
 			if (!G.mtx.containsKey(from)) {
-				a[from]++;
+				int next = rand.nextInt(numberOfDocs);
+				randomWalk(a, next, numberOfDocs);
 				return;
 			}
 
@@ -218,7 +230,7 @@ public class MonteCarlo {
 
 			int next = row.get(rand.nextInt(row.size()));
 	
-			randomWalk(a, next);
+			randomWalk(a, next, numberOfDocs);
 			return;
 		} else {
 			a[from]++;
@@ -234,7 +246,7 @@ public class MonteCarlo {
 
 		for (int i = 0; i < n; i++) {
 			for (int j = 0; j < m; j++) {
-				randomWalk(a, i);
+				randomWalk(a, i, numberOfDocs);
 			}
 		}
 
@@ -510,16 +522,25 @@ public class MonteCarlo {
 	 * 
 	 * @return The euclidean distance between the two vectors
 	 */
-	private static double distance(Double[] a, double[] b) throws IllegalArgumentException {
+	private static double distance(ArrayList<Pair> a, double[] b) throws IllegalArgumentException {
 
-        if (a.length != b.length) {
-            throw new IllegalArgumentException("Incompatible dimensions: " + a.length + ", " + b.length);
-        }
+        if (a.size() != b.length) {
+            throw new IllegalArgumentException("Incompatible dimensions: " + a.size() + ", " + b.length);
+		}
+		
+		ArrayList<Double> bSorted = new ArrayList<>();
+		for (Pair p: a) {
+			bSorted.add(b[p.first]);
+		}
 
         double alignment = 0.0;
-        
-        for (int i = 0; i < a.length; i++){
-            alignment += Math.pow(a[i] - b[i], 2);
+		
+		/** Only compare the top 30 documents */
+        for (int i = 0; i < NO_REFERENCE_COMPARISONS; i++){
+			// if (a.get(i).first != bSorted.get(i)) {
+			// 	System.err.printf("Document names not the same, i=%d, a[i]=%f, b[i]=%d%n", i, a.get(i), bSorted.get(i));
+			// }
+            alignment += Math.pow(a.get(i).second - bSorted.get(i), 2.0);
         }
 
         alignment = Math.sqrt(alignment);
@@ -536,7 +557,7 @@ public class MonteCarlo {
 	 * a list with regard to one value while
 	 * retaining reference to the second one. 
 	*/
-	private class Pair implements Comparable<Pair> {
+	private static class Pair implements Comparable<Pair> {
         public int first = 0;
         public double second = 0.0;
 
