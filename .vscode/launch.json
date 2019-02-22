@@ -94,6 +94,20 @@
             "args": [
                 "pagerank/linksSvwiki.txt"
             ]
+        },
+        {
+            "type": "java",
+            "name": "Debug - HITS",
+            "request": "launch",
+            "cwd": "${workspaceRoot}",
+            "classPaths": [
+                "build"
+            ],
+            "mainClass": "ir.HITSRanker",
+            "args": [
+                "data/linksDavis.txt",
+                "data/davisTitles.txt"
+            ]
         }
     ]
 }
