@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +55,7 @@ public class HITSRanker {
     /**
      * Sparse vector containing hub scores
      */
-    HashMap<Integer, Double> hubs;
+    SparseVector hubs;
 
     /**
 	 * Mapping from document names to document numbers.
@@ -69,7 +70,7 @@ public class HITSRanker {
     /**
      * Sparse vector containing authority scores
      */
-    HashMap<Integer, Double> authorities;
+    SparseVector authorities;
 
     private static final String INDEXDIR = "index/";
     private static final String DATADIR = "data/";
@@ -204,19 +205,25 @@ public class HITSRanker {
     private void iterate(String[] titles) {
         SparseVector oldHubs = new SparseVector(numberOfDocs);
         SparseVector oldAuths = new SparseVector(numberOfDocs);
-		double[] a = new double[numberOfDocs];
-        a[0] = 1.0;
+        
+        hubs = new SparseVector(numberOfDocs);
+        authorities = new SparseVector(numberOfDocs);
+
+        for (int i = 0; i < numberOfDocs; i++) {
+            hubs.put(i, 1.0);
+            authorities.put(i, 1.0);
+        }
 
         int i = 0;
         double err = 10;
         while (err > EPSILON && i < MAX_NUMBER_OF_STEPS) {
 			System.err.println("Iteration: " + i);
             i++;
-            a_old = a;
+            oldHubs = hubs;
             a = multiply(a, G);
-			normalize(a);
+			normalize(hubs);
 
-            err = distance(a_old, a);
+            err = distance(oldHubs, hubs);
         }
 
         System.err.println("Iterations: " + i);
@@ -364,15 +371,15 @@ public class HITSRanker {
      * 
      * @param a The vector to be normalized
      */
-    private static void normalize(double[] a) {
+    private static void normalize(SparseVector a) {
 
         double norm = 0.0;
-        for (int i = 0; i < a.length; i++) {
-            norm += a[i];
+        for (Map.Entry<Integer, Double> e: a.entrySet()) {
+            norm += e.getValue();
         }
 
-        for (int i = 0; i < a.length; i++) {
-            a[i] /= norm;
+        for (Map.Entry<Integer, Double> e: a.entrySet()) {
+            e.setValue(e.getValue() / norm);
         }
     }
 
@@ -386,16 +393,27 @@ public class HITSRanker {
      * 
      * @return The euclidean distance between the two vectors
      */
-    private static double distance(double[] a, double[] b) throws IllegalArgumentException {
+    private static double distance(SparseVector a, SparseVector b) throws IllegalArgumentException {
 
-        if (a.length != b.length) {
-            throw new IllegalArgumentException("Incompatible dimensions: " + a.length + ", " + b.length);
+        if (a.m != b.m) {
+            throw new IllegalArgumentException("Incompatible dimensions: " + a.m + ", " + b.m);
         }
 
         double alignment = 0.0;
 
-        for (int i = 0; i < a.length; i++) {
-            alignment += Math.pow(a[i] - b[i], 2);
+        HashSet<Integer> processedIndices = new HashSet<>();
+        for (Map.Entry<Integer, Double> e: a.entrySet()) {
+            if (b.containsKey(e.getKey())) {
+                alignment += Math.pow(e.getValue() - b.get(e.getKey()), 2.0);
+            } else {
+                alignment += Math.pow(e.getValue(), 2.0);
+            }
+            processedIndices.add(e.getKey());
+        }
+
+        for (Map.Entry<Integer, Double> e: b.entrySet()) {
+            if (!processedIndices.contains(e.getKey()))
+                alignment += Math.pow(e.getValue(), 2.0);
         }
 
         alignment = Math.sqrt(alignment);
@@ -418,8 +436,7 @@ public class HITSRanker {
         }
 	}
 	
-	protected class SparseMatrix {
-		protected HashMap<Integer, LinkedHashMap<Integer, Double>> mtx = new HashMap<>();
+	protected class SparseMatrix extends HashMap<Integer, LinkedHashMap<Integer, Double>> {
 
 		protected int m;
 		protected int n;
@@ -430,17 +447,45 @@ public class HITSRanker {
 		/** Value for row if it has non-zero entries */
 		protected double defaultRowValue;
 
-		public SparseMatrix(int m, int n, double emptyRowValue, double defaultRowValue) {
-			this.emptyRowValue = emptyRowValue;
-			this.defaultRowValue = defaultRowValue;
+		public SparseMatrix(int m, int n) {
+            super();
+            this.m = m;
+            this.n = n;
 		}
 
 		public LinkedHashMap<Integer, Double> newRow(int i) {
 			LinkedHashMap<Integer, Double> row = new LinkedHashMap<>();
 
-			mtx.put(i, row);
+			put(i, row);
 			return row;
-		}
+        }
+        
+        private SparseMatrix multiply(SparseMatrix A, SparseMatrix B) {
+            if (A.n != B.m) {
+                throw new IllegalArgumentException("Bad matrix dimensions: " + A.m +"x" + A.n + " , " + B.m + "x" + B.n);
+            }
+
+            SparseMatrix prod = new SparseMatrix(A.m, B.n);
+    
+            for (Map.Entry<Integer,LinkedHashMap<Integer, Double>> row: A.entrySet()) {
+                double[] fastRow = new double[B.n];
+                for (Map.Entry<Integer, Double> e: row.getValue().entrySet()) {
+                    fastRow[e.getKey()] += 
+                }
+
+                /** Write row */
+                if (!prod.containsKey(row.getKey())) {
+                    LinkedHashMap<Integer, Double> prodRow = prod.newRow(row.getKey());
+                } else {
+                    LinkedHashMap<Integer, Double> prodRow = prod.get(row.getKey());
+                }
+                for (int v = 0; v < fastRow.length; v++) {
+                    
+                }
+            }
+    
+            return prod;
+        }
     }
     
     protected class SparseVector extends HashMap<Integer, Double> {
