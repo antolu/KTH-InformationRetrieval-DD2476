@@ -165,6 +165,26 @@
                 "cwd": "${workspaceRoot}"
             },
             "group": {
+                "kind": "test"
+            }
+        },
+        {
+            "label": "MonteCarlo",
+            "command": "",
+            "windows": {
+                "args": [
+                    "scripts\\run_montecarlo.bat"
+                ],
+            },
+            "linux": {
+                "args": [
+                    "scripts/run_montecarlo.sh"
+                ],
+            },
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "group": {
                 "kind": "test",
                 "isDefault": true
             }
