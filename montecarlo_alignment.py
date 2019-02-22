@@ -35,27 +35,31 @@ for i in range(4) :
 
 N = np.asarray(N)
 
-f, (ax1, ax2) = plt.subplots(1,2, sharey=True)
+f, (ax1, ax2) = plt.subplots(1,2, sharex=True)
 
 ax1.set_title("Goodness vs N")
 for i in range(4) :
     j = i
     if i > 2 :
         j += 1
-    ax1.plot(np.log10(N), goodness[i], label="MonteCarlo " + str(j))
-ax1.set_xlabel(r"$\log_{10}N$")
+    ax1.semilogx(N, goodness[i], label="MonteCarlo " + str(j))
+ax1.set_xlabel(r"$N$")
 ax1.set_ylabel(r"$Goodness (euclidean)$")
 ax1.legend()
+# ax1.set_xlim(5, 9)
+# ax1.set_ylim(0, 1e-3)
 
 ax2.set_title("Time consumption vs N")
 for i in range(4) :
     j = i + 1
     if i > 2 :
         j += 1
-    ax2.plot(np.log10(N), times[i], label="MonteCarlo " + str(j))
-ax2.set_xlabel(r"$\log_{10}N$")
+    ax2.semilogx(N, times[i], label="MonteCarlo " + str(j))
+ax2.set_xlabel(r"$N$")
 ax2.set_ylabel(r"Computation time (s)")
 ax2.legend()
+# ax2.set_xlim(5, 9)
+# ax2.set_ylim(0, 35)
 
 plt.show()
 plt.close()
