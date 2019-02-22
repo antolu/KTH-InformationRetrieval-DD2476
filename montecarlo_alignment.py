@@ -61,5 +61,8 @@ ax2.legend()
 # ax2.set_xlim(5, 9)
 # ax2.set_ylim(0, 35)
 
+f.set_size_inches(20, 10)
+
+plt.savefig("data/montecarlo_plots.eps")
 plt.show()
 plt.close()
