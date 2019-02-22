@@ -7,4 +7,4 @@ fi
 
 javac -g -cp . -d build pagerank/*.java montecarlo/*.java
 
-java -Xmx2G -cp build montecarlo.MonteCarlo pagerank/linksDavis.txt
+java -Xmx2G -cp build montecarlo.MonteCarlo data/linksDavis.txt

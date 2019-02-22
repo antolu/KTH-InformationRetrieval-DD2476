@@ -31,7 +31,8 @@ public class PageRankSparse {
 	 */
 	String[] docName = new String[MAX_NUMBER_OF_DOCS];
 
-	private static final String INDEXDIR = "index/";
+    private static final String INDEXDIR = "index/";
+	private static final String DATADIR = "data/";
 
 	/**
 	 * A memory-efficient representation of the transition matrix. The outlinks are
@@ -64,7 +65,7 @@ public class PageRankSparse {
 	 * Convergence criterion: Transition probabilities do not change more that
 	 * EPSILON from one iteration to another.
 	 */
-	final static double EPSILON = 0.00001;
+	final static double EPSILON = 0.0000001;
 
 	/**
 	 * A Pair implementation so one can sort
@@ -126,6 +127,7 @@ public class PageRankSparse {
 		System.err.printf("Writing pageranks to file...%n");
 		try {
 			writePageranks(docName, pagerank);
+			writeReference(pagerank);
 		} catch (IOException e) {
 			System.err.println("IOException! Write failed.");
 		}
@@ -277,7 +279,7 @@ public class PageRankSparse {
 
 		/** 1;blabla.f */
 		HashMap<String, String> realDocNames = new HashMap<>();
-        File file = new File(INDEXDIR + "/davisTitles.txt");
+        File file = new File(DATADIR + "/davisTitles.txt");
         FileReader freader = new FileReader(file);
         try (BufferedReader br = new BufferedReader(freader)) {
             String line;
@@ -391,6 +393,15 @@ public class PageRankSparse {
 
         return alignment;
 	}
+
+	private void writeReference(double[] a) throws IOException {
+
+        FileOutputStream fout = new FileOutputStream(DATADIR + "/referenceDavis");
+        for (int i = 0; i < a.length; i++) {
+            String docInfoEntry = i + ";" + a[i] + "\n";
+            fout.write(docInfoEntry.getBytes());
+        }
+    }
 
 	/* --------------------------------------------- */
 
