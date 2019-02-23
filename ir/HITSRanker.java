@@ -72,6 +72,7 @@ public class HITSRanker {
      */
     SparseVector authorities;
 
+    SparseMatrix A;
     SparseMatrix AAT;
     SparseMatrix ATA;
 
@@ -119,7 +120,7 @@ public class HITSRanker {
      */
     public HITSRanker(String linksFilename, String titlesFilename, Index index) {
         this.index = index;
-        readDocs(linksFilename, titlesFilename);
+        numberOfDocs = readDocs(linksFilename, titlesFilename);
 
         SparseMatrix A = new SparseMatrix(2, 2);
 
@@ -127,7 +128,7 @@ public class HITSRanker {
         A.newRow(1);
         A.get(0).put(0, 2.0);
         A.get(0).put(1, 3.0);
-        A.get(1).put(1, .0);
+        A.get(1).put(1, 7.0);
 
         SparseMatrix aat = A.getAAT();
 
@@ -217,20 +218,41 @@ public class HITSRanker {
     }
 
     /**
+	 * Initializes the probability matrix G
+	 * 
+	 * @param numberOfDocs Number of documents (size of G matrix)
+	 */
+	void initiateProbabilityMatrix(int numberOfDocs) {
+		A = new SparseMatrix(numberOfDocs, numberOfDocs);
+
+		/** Calculate non-zero entries */
+        for (int i = 0; i < numberOfDocs; i++) {
+			if (link.containsKey(i)) {
+				LinkedHashMap<Integer, Double> row = A.newRow(i);
+				for (int j: link.get(i).keySet())
+					row.put(j, 1.0);
+			}
+        }
+        
+        System.err.println("Calculating matrix");
+        AAT = A.getAAT();
+    }
+
+    /**
      * Perform HITS iterations until convergence
      *
      * @param titles The titles of the documents in the root set
      */
     private void iterate(String[] titles) {
         SparseVector oldHubs = new SparseVector(numberOfDocs);
-        SparseVector oldAuths = new SparseVector(numberOfDocs);
+        // SparseVector oldAuths = new SparseVector(numberOfDocs);
 
         hubs = new SparseVector(numberOfDocs);
         authorities = new SparseVector(numberOfDocs);
 
         for (int i = 0; i < numberOfDocs; i++) {
             hubs.put(i, 1.0);
-            authorities.put(i, 1.0);
+            // authorities.put(i, 1.0);
         }
 
         int i = 0;
@@ -346,6 +368,7 @@ public class HITSRanker {
      * documents containing top 30 authority scores
      */
     void rank() {
+        initiateProbabilityMatrix(numberOfDocs);
         iterate(titleToId.keySet().toArray(new String[0]));
         HashMap<Integer, Double> sortedHubs = sortHashMapByValue(hubs);
         HashMap<Integer, Double> sortedAuthorities = sortHashMapByValue(authorities);
