@@ -31,10 +31,10 @@ public class HITSRanker {
     final static int MAX_NUMBER_OF_STEPS = 1000;
 
     /**
-	 * Maximal number of documents. We're assuming here that we don't have more docs
-	 * than we can keep in main memory.
-	 */
-	final static int MAX_NUMBER_OF_DOCS = 2000000;
+     * Maximal number of documents. We're assuming here that we don't have more docs
+     * than we can keep in main memory.
+     */
+    final static int MAX_NUMBER_OF_DOCS = 2000000;
 
     /**
      * Convergence criterion: hub and authority scores do not change more that
@@ -58,14 +58,14 @@ public class HITSRanker {
     SparseVector hubs;
 
     /**
-	 * Mapping from document names to document numbers.
-	 */
-	HashMap<String, Integer> docNumber = new HashMap<String, Integer>();
+     * Mapping from document names to document numbers.
+     */
+    HashMap<String, Integer> docNumber = new HashMap<String, Integer>();
 
-	/**
-	 * Mapping from document numbers to document names
-	 */
-	String[] docName = new String[MAX_NUMBER_OF_DOCS];
+    /**
+     * Mapping from document numbers to document names
+     */
+    String[] docName = new String[MAX_NUMBER_OF_DOCS];
 
     /**
      * Sparse vector containing authority scores
@@ -79,20 +79,20 @@ public class HITSRanker {
     private static final String DATADIR = "data/";
 
     private static int numberOfDocs = 0;
-    
-    	/**
-	 * A memory-efficient representation of the transition matrix. The outlinks are
-	 * represented as a HashMap, whose keys are the numbers of the documents linked
-	 * from.
-	 * <p>
-	 *
-	 * The value corresponding to key i is a HashMap whose keys are all the numbers
-	 * of documents j that i links to.
-	 * <p>
-	 *
-	 * If there are no outlinks from i, then the value corresponding key i is null.
-	 */
-	HashMap<Integer, HashMap<Integer, Boolean>> link = new HashMap<Integer, HashMap<Integer, Boolean>>();
+
+    /**
+     * A memory-efficient representation of the transition matrix. The outlinks are
+     * represented as a HashMap, whose keys are the numbers of the documents linked
+     * from.
+     * <p>
+     *
+     * The value corresponding to key i is a HashMap whose keys are all the numbers
+     * of documents j that i links to.
+     * <p>
+     *
+     * If there are no outlinks from i, then the value corresponding key i is null.
+     */
+    HashMap<Integer, HashMap<Integer, Boolean>> link = new HashMap<Integer, HashMap<Integer, Boolean>>();
 
     /* --------------------------------------------- */
 
@@ -120,6 +120,22 @@ public class HITSRanker {
     public HITSRanker(String linksFilename, String titlesFilename, Index index) {
         this.index = index;
         readDocs(linksFilename, titlesFilename);
+
+        SparseMatrix A = new SparseMatrix(2, 2);
+
+        A.newRow(0);
+        A.newRow(1);
+        A.get(0).put(0, 2.0);
+        A.get(0).put(1, 3.0);
+        A.get(1).put(1, .0);
+
+        SparseMatrix aat = A.getAAT();
+
+        System.err.print("A: ");
+        System.err.println(A);
+
+        System.err.print("AAT: ");
+        System.err.println(aat);
     }
 
     /* --------------------------------------------- */
@@ -149,55 +165,55 @@ public class HITSRanker {
      *                       titles
      */
     int readDocs(String linksFilename, String titlesFilename) {
-		int fileIndex = 0;
-		try {
-			System.err.print("Reading file... ");
-			BufferedReader in = new BufferedReader(new FileReader(linksFilename));
-			String line;
-			while ((line = in.readLine()) != null && fileIndex < MAX_NUMBER_OF_DOCS) {
-				int index = line.indexOf(";");
-				String title = line.substring(0, index);
-				Integer fromdoc = docNumber.get(title);
-				// Have we seen this document before?
-				if (fromdoc == null) {
-					// This is a previously unseen doc, so add it to the table.
-					fromdoc = fileIndex++;
-					docNumber.put(title, fromdoc);
-					docName[fromdoc] = title;
-				}
-				// Check all outlinks.
-				StringTokenizer tok = new StringTokenizer(line.substring(index + 1), ",");
-				while (tok.hasMoreTokens() && fileIndex < MAX_NUMBER_OF_DOCS) {
-					String otherTitle = tok.nextToken();
-					Integer otherDoc = docNumber.get(otherTitle);
-					if (otherDoc == null) {
-						// This is a previousy unseen doc, so add it to the table.
-						otherDoc = fileIndex++;
-						docNumber.put(otherTitle, otherDoc);
-						docName[otherDoc] = otherTitle;
-					}
-					// Set the probability to 0 for now, to indicate that there is
-					// a link from fromdoc to otherDoc.
-					if (link.get(fromdoc) == null) {
-						link.put(fromdoc, new HashMap<Integer, Boolean>());
-					}
-					if (link.get(fromdoc).get(otherDoc) == null) {
-						link.get(fromdoc).put(otherDoc, true);
-					}
-				}
-			}
-			if (fileIndex >= MAX_NUMBER_OF_DOCS) {
-				System.err.print("stopped reading since documents table is full. ");
-			} else {
-				System.err.print("done. ");
-			}
-		} catch (FileNotFoundException e) {
-			System.err.println("File " + linksFilename + " not found!");
-		} catch (IOException e) {
-			System.err.println("Error reading file " + linksFilename);
-		}
-		System.err.println("Read " + fileIndex + " number of documents");
-		return fileIndex;
+        int fileIndex = 0;
+        try {
+            System.err.print("Reading file... ");
+            BufferedReader in = new BufferedReader(new FileReader(linksFilename));
+            String line;
+            while ((line = in.readLine()) != null && fileIndex < MAX_NUMBER_OF_DOCS) {
+                int index = line.indexOf(";");
+                String title = line.substring(0, index);
+                Integer fromdoc = docNumber.get(title);
+                // Have we seen this document before?
+                if (fromdoc == null) {
+                    // This is a previously unseen doc, so add it to the table.
+                    fromdoc = fileIndex++;
+                    docNumber.put(title, fromdoc);
+                    docName[fromdoc] = title;
+                }
+                // Check all outlinks.
+                StringTokenizer tok = new StringTokenizer(line.substring(index + 1), ",");
+                while (tok.hasMoreTokens() && fileIndex < MAX_NUMBER_OF_DOCS) {
+                    String otherTitle = tok.nextToken();
+                    Integer otherDoc = docNumber.get(otherTitle);
+                    if (otherDoc == null) {
+                        // This is a previousy unseen doc, so add it to the table.
+                        otherDoc = fileIndex++;
+                        docNumber.put(otherTitle, otherDoc);
+                        docName[otherDoc] = otherTitle;
+                    }
+                    // Set the probability to 0 for now, to indicate that there is
+                    // a link from fromdoc to otherDoc.
+                    if (link.get(fromdoc) == null) {
+                        link.put(fromdoc, new HashMap<Integer, Boolean>());
+                    }
+                    if (link.get(fromdoc).get(otherDoc) == null) {
+                        link.get(fromdoc).put(otherDoc, true);
+                    }
+                }
+            }
+            if (fileIndex >= MAX_NUMBER_OF_DOCS) {
+                System.err.print("stopped reading since documents table is full. ");
+            } else {
+                System.err.print("done. ");
+            }
+        } catch (FileNotFoundException e) {
+            System.err.println("File " + linksFilename + " not found!");
+        } catch (IOException e) {
+            System.err.println("Error reading file " + linksFilename);
+        }
+        System.err.println("Read " + fileIndex + " number of documents");
+        return fileIndex;
     }
 
     /**
@@ -208,7 +224,7 @@ public class HITSRanker {
     private void iterate(String[] titles) {
         SparseVector oldHubs = new SparseVector(numberOfDocs);
         SparseVector oldAuths = new SparseVector(numberOfDocs);
-        
+
         hubs = new SparseVector(numberOfDocs);
         authorities = new SparseVector(numberOfDocs);
 
@@ -220,29 +236,29 @@ public class HITSRanker {
         int i = 0;
         double err = 10;
         while (err > EPSILON && i < MAX_NUMBER_OF_STEPS) {
-			System.err.println("Iteration: " + i);
+            System.err.println("Iteration: " + i);
             i++;
             oldHubs = hubs;
             hubs = AAT.multiplyVector(hubs);
-			normalize(hubs);
+            normalize(hubs);
 
             err = distance(oldHubs, hubs);
         }
 
         System.err.println("Iterations: " + i);
 
-		displayTopResults(hubs);
+        displayTopResults(hubs);
     }
 
     /**
-	 * Displays the top results of the pagerank
-	 * 
-	 * @param a The vector with pagerank values
-	 */
+     * Displays the top results of the pagerank
+     * 
+     * @param a The vector with pagerank values
+     */
     void displayTopResults(SparseVector a) {
         ArrayList<Pair> results = new ArrayList<>();
 
-        for (Map.Entry<Integer, Double> e: a.entrySet()) {
+        for (Map.Entry<Integer, Double> e : a.entrySet()) {
             results.add(new Pair(e.getKey(), e.getValue()));
         }
 
@@ -254,7 +270,7 @@ public class HITSRanker {
 
             System.err.format(name + " %.5f%n", pair.value);
         }
-	}
+    }
 
     /**
      * Rank the documents in the subgraph induced by the documents present in the
@@ -345,11 +361,11 @@ public class HITSRanker {
     private static void normalize(SparseVector a) {
 
         double norm = 0.0;
-        for (Map.Entry<Integer, Double> e: a.entrySet()) {
+        for (Map.Entry<Integer, Double> e : a.entrySet()) {
             norm += e.getValue();
         }
 
-        for (Map.Entry<Integer, Double> e: a.entrySet()) {
+        for (Map.Entry<Integer, Double> e : a.entrySet()) {
             e.setValue(e.getValue() / norm);
         }
     }
@@ -373,7 +389,7 @@ public class HITSRanker {
         double alignment = 0.0;
 
         HashSet<Integer> processedIndices = new HashSet<>();
-        for (Map.Entry<Integer, Double> e: a.entrySet()) {
+        for (Map.Entry<Integer, Double> e : a.entrySet()) {
             if (b.containsKey(e.getKey())) {
                 alignment += Math.pow(e.getValue() - b.get(e.getKey()), 2.0);
             } else {
@@ -382,7 +398,7 @@ public class HITSRanker {
             processedIndices.add(e.getKey());
         }
 
-        for (Map.Entry<Integer, Double> e: b.entrySet()) {
+        for (Map.Entry<Integer, Double> e : b.entrySet()) {
             if (!processedIndices.contains(e.getKey()))
                 alignment += Math.pow(e.getValue(), 2.0);
         }
@@ -405,32 +421,32 @@ public class HITSRanker {
         public int compareTo(Pair other) {
             return Double.compare(value, other.value);
         }
-	}
-	
-	protected class SparseMatrix extends HashMap<Integer, ArrayList<Integer>> {
+    }
 
-		protected int m;
-		protected int n;
+    protected class SparseMatrix extends HashMap<Integer, LinkedHashMap<Integer, Double>> {
 
-		/** Value for row if it its empty */
-		protected double emptyRowValue;
+        protected int m;
+        protected int n;
 
-		/** Value for row if it has non-zero entries */
-		protected double defaultRowValue;
+        /** Value for row if it its empty */
+        protected double emptyRowValue;
 
-		public SparseMatrix(int m, int n) {
+        /** Value for row if it has non-zero entries */
+        protected double defaultRowValue;
+
+        public SparseMatrix(int m, int n) {
             super();
             this.m = m;
             this.n = n;
-		}
-
-		public ArrayList<Integer> newRow(int i) {
-			ArrayList<Integer> row = new ArrayList<>();
-
-			put(i, row);
-			return row;
         }
-        
+
+        public LinkedHashMap<Integer, Double> newRow(int i) {
+            LinkedHashMap<Integer, Double> row = new LinkedHashMap<>();
+
+            put(i, row);
+            return row;
+        }
+
         /**
          * Right multiplies the matrix with a vector
          * 
@@ -438,20 +454,22 @@ public class HITSRanker {
          * 
          * @return The product
          * 
-         * @throws IllegalArgumentException When matrix-vector dimensions are incompatible.
+         * @throws IllegalArgumentException When matrix-vector dimensions are
+         *                                  incompatible.
          */
         public SparseVector multiplyVector(SparseVector vector) {
             if (this.n != vector.m) {
-                throw new IllegalArgumentException("Bad matrix dimensions: " + this.m +"x" + this.n + " , " + 1 + "x" + vector.m);
+                throw new IllegalArgumentException(
+                        "Bad matrix dimensions: " + this.m + "x" + this.n + " , " + 1 + "x" + vector.m);
             }
 
             SparseVector prod = new SparseVector(vector.m);
 
-            for (Map.Entry<Integer, ArrayList<Integer>> matrixRow: entrySet()) {
+            for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> matrixRow : entrySet()) {
                 double elem = 0.0;
-                for (int e: matrixRow.getValue()) {
+                for (Map.Entry<Integer, Double> e : matrixRow.getValue().entrySet()) {
                     try {
-                        elem += vector.get(e);
+                        elem += e.getValue() * vector.get(e.getKey());
                     } catch (NullPointerException ex) {
                         // Do nothind, element does not exist in vector
                     }
@@ -460,36 +478,75 @@ public class HITSRanker {
             }
 
             return prod;
-        } 
+        }
 
         public SparseMatrix getAAT() {
 
             SparseMatrix res = new SparseMatrix(m, m);
-    
 
-    
+            for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> row : entrySet()) {
+                LinkedHashMap<Integer, Double> newRow = res.newRow(row.getKey());
+
+                double[] fastRow = new double[m];
+                for (Map.Entry<Integer, Double> col : row.getValue().entrySet()) {
+                    int column = col.getKey();
+                    // if (column == row.getKey()) {
+                    //     double val = 0.0;
+                    //     for (Map.Entry<Integer, Double> k : row.getValue().entrySet()) {
+                    //         val += Math.pow(k.getValue(), 2.0);
+                    //     }
+                    //     fastRow[column] = val;
+                    //     continue;
+                    // }
+
+                    for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> m : entrySet()) {
+                        try {
+                            fastRow[m.getKey()] += col.getValue() * m.getValue().get(column);
+                        } catch (NullPointerException e) {
+                            // Do nothing, value does not exist
+                        }
+                    }
+                }
+                for (int i = 0; i < fastRow.length; i++) {
+                    if (fastRow[i] != 0) {
+                        newRow.put(i, fastRow[i]);
+                    }
+                }
+            }
+
             return res;
         }
 
         public SparseMatrix getATA() {
 
             SparseMatrix res = new SparseMatrix(n, n);
-    
 
-    
             return res;
         }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> i : entrySet()) {
+                for (Map.Entry<Integer, Double> j : i.getValue().entrySet()) {
+                    sb.append("(" + i.getKey() + ", " + j.getKey() + "):" + j.getValue() + " ");
+                }
+                sb.append("\n");
+            }
+
+            return sb.toString();
+        }
     }
-    
+
     protected class SparseVector extends HashMap<Integer, Double> {
-		protected HashMap<Integer, Double> mtx = new HashMap<>();
+        protected HashMap<Integer, Double> mtx = new HashMap<>();
 
-		protected int m;
+        protected int m;
 
-		public SparseVector(int m) {
+        public SparseVector(int m) {
             this.m = m;
-		}
-	}
+        }
+    }
 
     /* --------------------------------------------- */
 
