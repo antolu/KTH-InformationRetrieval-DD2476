@@ -385,8 +385,10 @@ public class HITSRanker {
 
         double norm = 0.0;
         for (Map.Entry<Integer, Double> e : a.entrySet()) {
-            norm += e.getValue();
+            norm += Math.pow(e.getValue(), 2.0);
         }
+
+        norm = Math.sqrt(norm);
 
         for (Map.Entry<Integer, Double> e : a.entrySet()) {
             e.setValue(e.getValue() / norm);
