@@ -72,6 +72,9 @@ public class HITSRanker {
      */
     SparseVector authorities;
 
+    SparseMatrix AAT;
+    SparseMatrix ATA;
+
     private static final String INDEXDIR = "index/";
     private static final String DATADIR = "data/";
 
@@ -220,7 +223,7 @@ public class HITSRanker {
 			System.err.println("Iteration: " + i);
             i++;
             oldHubs = hubs;
-            a = multiply(a, G);
+            hubs = AAT.multiplyVector(hubs);
 			normalize(hubs);
 
             err = distance(oldHubs, hubs);
@@ -228,8 +231,7 @@ public class HITSRanker {
 
         System.err.println("Iterations: " + i);
 
-		displayTopResults(a);
-        return a;
+		displayTopResults(hubs);
     }
 
     /**
@@ -237,11 +239,11 @@ public class HITSRanker {
 	 * 
 	 * @param a The vector with pagerank values
 	 */
-    void displayTopResults(double[] a) {
+    void displayTopResults(SparseVector a) {
         ArrayList<Pair> results = new ArrayList<>();
 
-        for (int i = 0; i < a.length; i++) {
-            results.add(new Pair(i, a[i]));
+        for (Map.Entry<Integer, Double> e: a.entrySet()) {
+            results.add(new Pair(e.getKey(), e.getValue()));
         }
 
         Collections.sort(results, Collections.reverseOrder());
@@ -336,37 +338,6 @@ public class HITSRanker {
     }
 
     /**
-     * Left multiplies a vector with a matrix
-     * 
-     * @param vec A one dimensional vector
-     * @param G   A sparse vector
-     * 
-     * @return The product of vec*G
-     */
-    private static double[] multiply(double[] vec, SparseMatrix G) {
-        double[] prod = new double[vec.length];
-
-        for (int j = 0; j < vec.length; j++) {
-            if (G.mtx.containsKey(j)) {
-                LinkedHashMap<Integer, Double> row = G.mtx.get(j);
-                for (Map.Entry<Integer, Double> e : row.entrySet()) {
-                    prod[e.getKey()] += vec[j] * e.getValue();
-                }
-                for (int i = 0; i < vec.length; i++) {
-                    prod[i] += vec[j] * G.defaultRowValue;
-                }
-            } else {
-                double val = vec[j] * G.emptyRowValue;
-                for (int i = 0; i < vec.length; i++) {
-                    prod[i] += val;
-                }
-            }
-        }
-
-        return prod;
-    }
-
-    /**
      * Normalizes a vector with Manhattan length
      * 
      * @param a The vector to be normalized
@@ -436,7 +407,7 @@ public class HITSRanker {
         }
 	}
 	
-	protected class SparseMatrix extends HashMap<Integer, LinkedHashMap<Integer, Double>> {
+	protected class SparseMatrix extends HashMap<Integer, ArrayList<Integer>> {
 
 		protected int m;
 		protected int n;
@@ -453,38 +424,60 @@ public class HITSRanker {
             this.n = n;
 		}
 
-		public LinkedHashMap<Integer, Double> newRow(int i) {
-			LinkedHashMap<Integer, Double> row = new LinkedHashMap<>();
+		public ArrayList<Integer> newRow(int i) {
+			ArrayList<Integer> row = new ArrayList<>();
 
 			put(i, row);
 			return row;
         }
         
-        private SparseMatrix multiply(SparseMatrix A, SparseMatrix B) {
-            if (A.n != B.m) {
-                throw new IllegalArgumentException("Bad matrix dimensions: " + A.m +"x" + A.n + " , " + B.m + "x" + B.n);
+        /**
+         * Right multiplies the matrix with a vector
+         * 
+         * @param vector The vector
+         * 
+         * @return The product
+         * 
+         * @throws IllegalArgumentException When matrix-vector dimensions are incompatible.
+         */
+        public SparseVector multiplyVector(SparseVector vector) {
+            if (this.n != vector.m) {
+                throw new IllegalArgumentException("Bad matrix dimensions: " + this.m +"x" + this.n + " , " + 1 + "x" + vector.m);
             }
 
-            SparseMatrix prod = new SparseMatrix(A.m, B.n);
-    
-            for (Map.Entry<Integer,LinkedHashMap<Integer, Double>> row: A.entrySet()) {
-                double[] fastRow = new double[B.n];
-                for (Map.Entry<Integer, Double> e: row.getValue().entrySet()) {
-                    fastRow[e.getKey()] += 
-                }
+            SparseVector prod = new SparseVector(vector.m);
 
-                /** Write row */
-                if (!prod.containsKey(row.getKey())) {
-                    LinkedHashMap<Integer, Double> prodRow = prod.newRow(row.getKey());
-                } else {
-                    LinkedHashMap<Integer, Double> prodRow = prod.get(row.getKey());
+            for (Map.Entry<Integer, ArrayList<Integer>> matrixRow: entrySet()) {
+                double elem = 0.0;
+                for (int e: matrixRow.getValue()) {
+                    try {
+                        elem += vector.get(e);
+                    } catch (NullPointerException ex) {
+                        // Do nothind, element does not exist in vector
+                    }
                 }
-                for (int v = 0; v < fastRow.length; v++) {
-                    
-                }
+                prod.put(matrixRow.getKey(), elem);
             }
-    
+
             return prod;
+        } 
+
+        public SparseMatrix getAAT() {
+
+            SparseMatrix res = new SparseMatrix(m, m);
+    
+
+    
+            return res;
+        }
+
+        public SparseMatrix getATA() {
+
+            SparseMatrix res = new SparseMatrix(n, n);
+    
+
+    
+            return res;
         }
     }
     
