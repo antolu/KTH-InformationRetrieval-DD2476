@@ -69,6 +69,7 @@ public class SearchGUI extends JFrame {
     JRadioButtonMenuItem tfidfItem = new JRadioButtonMenuItem( "tf-idf" );
     JRadioButtonMenuItem pagerankItem = new JRadioButtonMenuItem( "PageRank" );
     JRadioButtonMenuItem combinationItem = new JRadioButtonMenuItem( "Combination" );
+    JRadioButtonMenuItem HITSItem = new JRadioButtonMenuItem( "HITS" );
     ButtonGroup queries = new ButtonGroup();
     ButtonGroup ranking = new ButtonGroup();
 
@@ -106,6 +107,7 @@ public class SearchGUI extends JFrame {
         rankingMenu.add( tfidfItem );
         rankingMenu.add( pagerankItem );
         rankingMenu.add( combinationItem );
+        rankingMenu.add( HITSItem );
         queries.add( intersectionItem );
         queries.add( phraseItem );
         queries.add( rankedItem );
@@ -247,6 +249,13 @@ public class SearchGUI extends JFrame {
             }
             };
         combinationItem.addActionListener( setCombinationRanking );
+
+        Action setHITSRanking = new AbstractAction() {
+            public void actionPerformed( ActionEvent e ) {
+                rankingType = RankingType.HITS;
+            }
+            };
+        HITSItem.addActionListener( setHITSRanking );
 
     }
 
