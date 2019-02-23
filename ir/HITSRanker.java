@@ -130,13 +130,39 @@ public class HITSRanker {
         A.get(0).put(1, 3.0);
         A.get(1).put(1, 7.0);
 
-        SparseMatrix aat = A.getAAT();
+        SparseMatrix AT = A.getTransposed();
+        // SparseMatrix AT = new SparseMatrix(2, 2);
+
+        // AT.newRow(0);
+        // AT.newRow(1);
+        // AT.get(0).put(0, 2.0);
+        // AT.get(1).put(0, 3.0);
+        // AT.get(1).put(1, 7.0);
+
+        long startTime = System.nanoTime();
+        SparseMatrix aat = A.multiply(AT);
+        long endTime = System.nanoTime();
+
+        double duration = ((double)(endTime - startTime))/1000000000.0;
+        System.err.printf("New method: duration: %fs%n%n", duration);
+
+        startTime = System.nanoTime();
+        aat = A.getAAT();
+        endTime = System.nanoTime();
+
+        duration = ((double)(endTime - startTime))/1000000000.0;
+        System.err.printf("Old method: %fs%n%n", duration);
 
         System.err.print("A: ");
         System.err.println(A);
 
+        System.err.print("AT: ");
+        System.err.println(AT);
+
         System.err.print("AAT: ");
         System.err.println(aat);
+
+        // System.exit(1);
     }
 
     /* --------------------------------------------- */
@@ -233,9 +259,23 @@ public class HITSRanker {
 					row.put(j, 1.0);
 			}
         }
+
+        SparseMatrix AT = A.getTransposed();
         
         System.err.println("Calculating matrix");
-        AAT = A.getAAT();
+        long startTime = System.nanoTime();
+        AAT = A.multiply(AT);
+        long endTime = System.nanoTime();
+
+        // double duration = ((double)(endTime - startTime))/1000000000.0;
+        // System.err.printf("New method: duration: %fs%n%n", duration);
+
+        // startTime = System.nanoTime();
+        // AAT = A.getAAT();
+        // endTime = System.nanoTime();
+
+        // duration = ((double)(endTime - startTime))/1000000000.0;
+        // System.err.printf("Old method: %fs%n%n", duration);
     }
 
     /**
@@ -264,7 +304,7 @@ public class HITSRanker {
             hubs = AAT.multiplyVector(hubs);
             normalize(hubs);
 
-            err = distance(oldHubs, hubs);
+            err = alignment(oldHubs, hubs);
         }
 
         System.err.println("Iterations: " + i);
@@ -288,7 +328,7 @@ public class HITSRanker {
 
         for (int i = 0; i < 30; i++) {
             Pair pair = results.get(i);
-            String name = docName[pair.docID];
+            String name = docName[pair.first];
 
             System.err.format(name + " %.5f%n", pair.value);
         }
@@ -306,7 +346,7 @@ public class HITSRanker {
         //
         // YOUR CODE HERE
         //
-        return null;
+        return post;
     }
 
     /**
@@ -405,7 +445,7 @@ public class HITSRanker {
      * 
      * @return The euclidean distance between the two vectors
      */
-    private static double distance(SparseVector a, SparseVector b) throws IllegalArgumentException {
+    private static double alignment(SparseVector a, SparseVector b) throws IllegalArgumentException {
 
         if (a.m != b.m) {
             throw new IllegalArgumentException("Incompatible dimensions: " + a.m + ", " + b.m);
@@ -433,12 +473,16 @@ public class HITSRanker {
         return alignment;
     }
 
+    /** 
+     * Implementation of pair class, contains an integer and double
+     * value. Sorts according to the double value.
+     */
     private class Pair implements Comparable<Pair> {
-        public int docID = 0;
+        public int first = 0;
         public double value = 0.0;
 
         public Pair(int docID, double value) {
-            this.docID = docID;
+            this.first = docID;
             this.value = value;
         }
 
@@ -448,6 +492,12 @@ public class HITSRanker {
         }
     }
 
+    /**
+     * Implementation of sparse matrix using hashmaps
+     * 
+     * <p> The index of the upper most layer represents the row of matrix, 
+     * and its value the row contents. </p>
+     */
     protected class SparseMatrix extends HashMap<Integer, LinkedHashMap<Integer, Double>> {
 
         protected int m;
@@ -496,7 +546,7 @@ public class HITSRanker {
                     try {
                         elem += e.getValue() * vector.get(e.getKey());
                     } catch (NullPointerException ex) {
-                        // Do nothind, element does not exist in vector
+                        // Do nothing, element does not exist in vector
                     }
                 }
                 prod.put(matrixRow.getKey(), elem);
@@ -505,6 +555,11 @@ public class HITSRanker {
             return prod;
         }
 
+        /** 
+         * Computes and returns the matrix A * A^The
+         * 
+         * @return The matrix multiplied with its transpose
+         */
         public SparseMatrix getAAT() {
 
             SparseMatrix res = new SparseMatrix(m, m);
@@ -515,14 +570,6 @@ public class HITSRanker {
                 double[] fastRow = new double[m];
                 for (Map.Entry<Integer, Double> col : row.getValue().entrySet()) {
                     int column = col.getKey();
-                    // if (column == row.getKey()) {
-                    //     double val = 0.0;
-                    //     for (Map.Entry<Integer, Double> k : row.getValue().entrySet()) {
-                    //         val += Math.pow(k.getValue(), 2.0);
-                    //     }
-                    //     fastRow[column] = val;
-                    //     continue;
-                    // }
 
                     for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> m : entrySet()) {
                         try {
@@ -549,6 +596,57 @@ public class HITSRanker {
             return res;
         }
 
+        public SparseMatrix getTransposed() {
+            SparseMatrix transposed = new SparseMatrix(n, m);
+
+            for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> row: entrySet()) {
+                for (Map.Entry<Integer, Double> val: row.getValue().entrySet()) {
+                    if (!transposed.containsKey(val.getKey())) {
+                        LinkedHashMap<Integer, Double> transposedRow = transposed.newRow(val.getKey());
+                        transposedRow.put(row.getKey(), val.getValue());
+                    } {
+                        transposed.get(val.getKey()).put(row.getKey(), val.getValue());
+                    }
+                }
+            }
+
+            return transposed;
+        }
+
+        public SparseMatrix multiply(SparseMatrix other) {
+
+            if (n != other.m) {
+                throw new IllegalArgumentException();
+            }
+
+            SparseMatrix prod = new SparseMatrix(m, other.n);
+
+            for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> row: entrySet()) {
+                double[] fastRow = new double[other.n];
+
+                LinkedHashMap<Integer, Double> prodRow = prod.newRow(row.getKey());
+
+                for (Map.Entry<Integer, Double> e: row.getValue().entrySet()) {
+                    if (other.containsKey(e.getKey())) {
+                        LinkedHashMap<Integer, Double> otherRow = other.get(e.getKey());
+
+                        double eValue = e.getValue();
+                        for (Map.Entry<Integer, Double> otherE: otherRow.entrySet()) {
+                            fastRow[otherE.getKey()] += eValue * otherE.getValue();
+                        }
+                    }
+                }
+
+                for (int i = 0; i < fastRow.length; i++) {
+                    if (fastRow[i] != 0) {
+                        prodRow.put(i, fastRow[i]);
+                    }
+                }
+            }
+
+            return prod;
+        }
+
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
@@ -563,8 +661,10 @@ public class HITSRanker {
         }
     }
 
+    /**
+     * Implementation of a sparse vector using a hashmap
+     */
     protected class SparseVector extends HashMap<Integer, Double> {
-        protected HashMap<Integer, Double> mtx = new HashMap<>();
 
         protected int m;
 
