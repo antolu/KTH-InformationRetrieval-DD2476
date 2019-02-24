@@ -135,13 +135,22 @@ public class MonteCarlo {
 
 		/** Determine which N run monte carlo for */
 		for (double mag = magnitude; mag <= magnitude + 2.0; mag++) {
-			for (double k = 1; k <= 10.0; k++) {
-				double n = k * Math.pow(10.0, mag);
-				Ns.add((int) n);
+			for (double k = 0.0; k < 10.0; k++) {
+				for (double l = 1.0; l <=
+				 10.0; l++) {
+					if (l == 0 && k == 0)
+						continue;
+					double n = l * Math.pow(10.0, mag - 1) + k * Math.pow(10.0, mag);
+					Ns.add((int) n);
+				}
 			}
 		}
 
 		// Ns.add(1000000);
+
+		for (int n: Ns) {
+			System.err.println(n);
+		}
 
 		for (int n: Ns) {
 			long startTime = System.nanoTime();
@@ -153,7 +162,7 @@ public class MonteCarlo {
 
 			for (int i = 0; i < NResults.size(); i++) {
 				double[] res = NResults.get(i);
-				double goodness = distance(referenceSorted, res);
+				double goodness = goodness(referenceSorted, res);
 				resultsData.get(i).add(new Pair(n, goodness));
 			}
 		}
@@ -219,7 +228,7 @@ public class MonteCarlo {
 
 		Random rand = new Random();
 
-		if (rand.nextDouble() > BORED) {
+		if (rand.nextDouble() >= BORED) {
 			if (!G.mtx.containsKey(from)) {
 				int next = rand.nextInt(numberOfDocs);
 				randomWalk(a, next, numberOfDocs);
@@ -282,7 +291,7 @@ public class MonteCarlo {
 		totalVisited.i++;
 		a[from]++;
 
-		if (rand.nextDouble() > BORED) {
+		if (rand.nextDouble() >= BORED) {
 			if (!G.mtx.containsKey(from)) {
 				return;
 			}
@@ -522,7 +531,7 @@ public class MonteCarlo {
 	 * 
 	 * @return The euclidean distance between the two vectors
 	 */
-	private static double distance(ArrayList<Pair> a, double[] b) throws IllegalArgumentException {
+	private static double goodness(ArrayList<Pair> a, double[] b) throws IllegalArgumentException {
 
         if (a.size() != b.length) {
             throw new IllegalArgumentException("Incompatible dimensions: " + a.size() + ", " + b.length);
@@ -543,7 +552,7 @@ public class MonteCarlo {
             alignment += Math.pow(a.get(i).second - bSorted.get(i), 2.0);
         }
 
-        alignment = Math.sqrt(alignment);
+        // alignment = Math.sqrt(alignment);
 
         return alignment;
 	}
