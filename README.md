@@ -180,8 +180,60 @@ docID!offset1,offset2,offset3
 
 The reason the query `queen of england` yields 364 (out of 364) matches in intersection query mode, but only 6 (out of 7) in phrase query mode, may be because of how the tokenizer works. Let's say that we have the phrase `queen of<england>` in the document, then the tokenizer may translate this to `queen`, `of`, `<`, `england` and `>`, where queen of england is no longer a contiguous phrase. 
 
+## Assignment 2
+
+### 2.4
+
+Difficult case: documents with two or three words and a redirect, are they relevant or not?
+
+> Compare the precision at 10, 20, 30, 40, 50 for the ranked retrieval to the precision for unranked retrieval. Which precision is the highest? Are there any trends?
+
+Precision for the intersection queries is in general higher than for ranked queries. This is to be expected because The ranked retrieval with tfidf tends to favor shorter documents that are not very relevant.
+
+The precision of the ranked retrieval became larger as N grew. Longer documents tended to be more relevant.
+
+> Do the same comparison of recalls. Which recall is the highest? Is there any correlation between precision at 10, 20, 30, 40, 50, recall at 10, 20, 30, 40, 50. 
+
+Recall for ranked retrieval tended to be worse for ranked retrieval than for intersection query for the same reason as above.
+
 ### 2.5
 
 > Look up the titles of some documents with high rank, and some documents with low rank. Does the ranking make sense. 
 
 A lot of documents link to 21, and 21 links to 36 so it in turn has high rating. It makes sense. 3 links to 21. 
+
+### 2.6
+
+> Look up the titles of some documents with high rank, and some documents with low rank. Does the ranking make sense. 
+
+A lot of documents link to 121 (1242). 121 links to 245, so 245 subsequently also has a high score. 
+
+For documents with low or no score, are rarely linked to, if at all, and have little to no outlinks. As expected.
+
+> What is the effect of letting the tf_idf score dominate this ranking? What is the effect of letting the pagerank dominate? What would be a good strategy for selecting an "optimal" combination? (Remember the quality measures you studied in Task 2.3)
+
+One method to find good linear combination coefficient is to get results for many coefficient values and use relevance feedback to determine 
+
+If tfidf dominates the score, the engine puts more weight into the content of the document, while if pagerank dominates, the authority of the page will instead show itself. 
+
+### 2.7 
+
+> What do you see? Why do you get this result? Explain, and relate to the properties of the (probabilistic) Monte-Carlo methods in contrast to the (deterministic) power iteration. 
+
+We see that the precision of the probabilistic method increases (the alignment of the top 30 document decreases and approaches zero) as N grows. However it should be noted at N=1e8 the Monte carlo took almost as long as the deterministic method. The convergence of the Monte Carlo method is reasonable. The downside with monte carlo approximation is that the approximation for lower ranked documents will be worse. 
+
+> Do your findings about the difference between the four method variants and the dependence of N support the claims made in the paper by Avrachenkov et al.?
+
+Method 4 and 5 seem to be much faster than 1 and 2, which is expected since the random walk terminates one it reaches a dangling node, instead of walking further. The accuracy of the different methods seem to be largely the same, however. 
+
+For `m=1` the precision of the MC method is indeed very good. The goodness at 1e-4 should be sufficient for most. 
+
+Cyclic start does in general seem to outperform random start. 
+
+### 2.8 
+
+> Compare your 30 highest ranked hub and authority scores to the ones provided in the files. Does the ranking make sense? How does it compare to pageranks?
+
+> After you have implemented the HITS algorithm, you'll need to integrate HITS ranking into your search engine. On the way there are several issues that need to be addressed:
+> 1. Unlike PageRank, HITS method should run on the fly and only on the query-specific subset of documents. How should one select this subset of documents correctly?
+> 2. The HITS algorithm provides two scores for each document in the subset, but the search engine can show only one score. How should one combine these two scores in a meaningful way? Can we use linear combination?
