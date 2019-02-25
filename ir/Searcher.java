@@ -214,22 +214,41 @@ public class Searcher {
 
         Collections.sort(results);
 
+        /** Normalize scores */
+        double norm = 0.0;
+        for (PostingsEntry pe: results) {
+            norm += pe.score;
+        }
+
+        for (PostingsEntry pe: results) {
+            pe.score /= norm;
+        }
+
         return results;
     }
 
     private PostingsList getCombinedQuery(Query query) {
         PostingsList tfidf = getTfidfQuery(query);
 
-        double norm = 0.0;
-        for (PostingsEntry pe: tfidf) {
-            norm += pe.score;
-        }
+        ArrayList<Double> pagerankScores = new ArrayList<>();
+        pagerankScores.ensureCapacity(tfidf.size());
 
-
+        double tfidfNorm = 0.0;
+        double pagerankNorm = 0.0;
         for (PostingsEntry pe: tfidf) {
+            tfidfNorm += pe.score;
+
             String docName = Index.docNames.get(pe.docID);
             String strippedDocName = docName.substring(docName.indexOf("/")+1);
-            pe.score = RANK_WEIGHT * pe.score/norm + (1.0-RANK_WEIGHT) * Index.pageranks.get(strippedDocName);
+            double pagerankScore = Index.pageranks.get(strippedDocName);
+            pagerankScores.add(pagerankScore);
+            pagerankNorm += pagerankScore;
+        }
+
+        int i = 0;
+        for (PostingsEntry pe: tfidf) {
+            pe.score = RANK_WEIGHT * pe.score/tfidfNorm + (1.0-RANK_WEIGHT) * pagerankScores.get(i) /pagerankNorm;
+            i++;
         }
 
         Collections.sort(tfidf);
