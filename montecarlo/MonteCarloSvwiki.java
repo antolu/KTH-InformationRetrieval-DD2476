@@ -118,11 +118,11 @@ public class MonteCarloSvwiki {
 
         Collections.sort(reference, Collections.reverseOrder());
         
-        // for (int i  = 0; i < 30; i++) {
-        //     System.err.println(reference.get(i).first + ": " + reference.get(i).second);
-        // }
+        for (int i  = 0; i < 30; i++) {
+            System.err.println(docName[reference.get(i).first] + ": " + reference.get(i).second);
+        }
 
-        // System.exit(100);
+        System.exit(100);
         
 
 		ArrayList<ArrayList<Pair>> resultsData = new ArrayList<>();
