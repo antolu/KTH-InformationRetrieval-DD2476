@@ -77,6 +77,7 @@ public class Indexer {
                             insertIntoIndex( docID, token, offset++ );
                         }
                         index.docNames.put( docID, f.getPath() );
+                        Index.docNamesToID.put( f.getPath(), docID );
                         index.docLengths.put( docID, offset );
                         reader.close();
                     } catch ( IOException e ) {

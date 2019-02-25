@@ -185,6 +185,26 @@
                 "cwd": "${workspaceRoot}"
             },
             "group": {
+                "kind": "test"
+            }
+        },
+        {
+            "label": "HITS",
+            "command": "",
+            "windows": {
+                "args": [
+                    "scripts\\run_hits.bat"
+                ],
+            },
+            "linux": {
+                "args": [
+                    "scripts/run_hits.sh"
+                ],
+            },
+            "options": {
+                "cwd": "${workspaceRoot}"
+            },
+            "group": {
                 "kind": "test",
                 "isDefault": true
             }

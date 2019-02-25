@@ -27,6 +27,9 @@ public class Searcher {
     /** The k-gram index to be searched by this Searcher */
     KGramIndex kgIndex;
 
+    private static final String DATADIR = "data";
+    HITSRanker HITSRanker;
+
     private static final Normalizer norm = Normalizer.EUCLIDEAN;
 
     /** How much the tfidf weigths during ranked query */
@@ -36,6 +39,8 @@ public class Searcher {
     public Searcher(Index index, KGramIndex kgIndex) {
         this.index = index;
         this.kgIndex = kgIndex;
+
+        HITSRanker = new HITSRanker(DATADIR + "/linksDavis.txt", DATADIR + "/davisTitles.txt", index);
     }
 
     /**
@@ -57,6 +62,8 @@ public class Searcher {
                     return getCombinedQuery(query);
                 } else if (rankingType == RankingType.PAGERANK) {
                     return getPagerankQuery(query);
+                } else if (rankingType == RankingType.HITS) {
+                    return getHITSQuery(query);
                 }
             }
 
@@ -228,6 +235,28 @@ public class Searcher {
         Collections.sort(tfidf);
 
         return tfidf;
+    }
+
+    private PostingsList getHITSQuery(Query query) {
+        ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
+
+        HashSet<Integer> savedDocIDs = new HashSet<>();
+
+        PostingsList results = new PostingsList();
+
+        for (PhraseToken pt: postingsLists) {
+            PostingsList pl = pt.postingsList;
+            for (PostingsEntry pe: pl) {
+                if (!savedDocIDs.contains(pe.docID)) {
+                    String docName = Index.docNames.get(pe.docID);
+                    results.add(pe);
+
+                    savedDocIDs.add(pe.docID);
+                }
+            }
+        }
+
+        return HITSRanker.rank(results);
     }
 
     /**
