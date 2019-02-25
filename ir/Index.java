@@ -17,6 +17,8 @@ public interface Index {
 
     /** Mapping from document identifiers to document names. */
     public HashMap<Integer,String> docNames = new HashMap<Integer,String>();
+
+    public HashMap<String, Integer> docNamesToID = new HashMap<>();
     
     /** Mapping from document identifier to document length. */
     public HashMap<Integer,Integer> docLengths = new HashMap<Integer,Integer>();

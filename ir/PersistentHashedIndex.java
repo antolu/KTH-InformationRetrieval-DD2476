@@ -256,6 +256,7 @@ public class PersistentHashedIndex implements Index {
             while ((line = br.readLine()) != null) {
                 String[] data = line.split(";");
                 docNames.put(Integer.parseInt(data[0]), data[1]);
+                docNamesToID.put(data[1], Integer.parseInt(data[0]));
                 docLengths.put(Integer.parseInt(data[0]), Integer.parseInt(data[2]));
             }
         }
