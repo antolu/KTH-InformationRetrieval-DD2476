@@ -125,13 +125,13 @@ public class Searcher {
         }
 
 
-        ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
+        ArrayList<TokenIndexData> postingsLists = getPostingsLists(query);
         HashMap<Integer, PostingsEntry> scores = new HashMap<>();
         HashMap<Integer, Double> denom = new HashMap<>();
 
         /** <docID, index> */
         int i = 0;
-        for (PhraseToken pt: postingsLists) {
+        for (TokenIndexData pt: postingsLists) {
             PostingsList pl = pt.postingsList;
             // int termID = Index.tokenIndex.get(postingsLists.get(0).token);
             for (PostingsEntry pe: pl) {
@@ -192,13 +192,13 @@ public class Searcher {
     }
 
     private PostingsList getPagerankQuery(Query query) {
-        ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
+        ArrayList<TokenIndexData> postingsLists = getPostingsLists(query);
 
         HashSet<Integer> savedDocIDs = new HashSet<>();
 
         PostingsList results = new PostingsList();
 
-        for (PhraseToken pt: postingsLists) {
+        for (TokenIndexData pt: postingsLists) {
             PostingsList pl = pt.postingsList;
             for (PostingsEntry pe: pl) {
                 if (!savedDocIDs.contains(pe.docID)) {
@@ -238,13 +238,13 @@ public class Searcher {
     }
 
     private PostingsList getHITSQuery(Query query) {
-        ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
+        ArrayList<TokenIndexData> postingsLists = getPostingsLists(query);
 
         HashSet<Integer> savedDocIDs = new HashSet<>();
 
         PostingsList results = new PostingsList();
 
-        for (PhraseToken pt: postingsLists) {
+        for (TokenIndexData pt: postingsLists) {
             PostingsList pl = pt.postingsList;
             for (PostingsEntry pe: pl) {
                 if (!savedDocIDs.contains(pe.docID)) {
@@ -422,7 +422,7 @@ public class Searcher {
      */
     private PostingsList getIntersectionQuery(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) throws IllegalArgumentException {
 
-        ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
+        ArrayList<TokenIndexData> postingsLists = getPostingsLists(query);
         PostingsList intersection;
 
         if (indexes != null) {
@@ -502,8 +502,8 @@ public class Searcher {
      * 
      * @throws IllegalArgumentException When a token does not exist in the index
      */
-    private ArrayList<PhraseToken> getPostingsLists(Query query) throws IllegalArgumentException {
-        ArrayList<PhraseToken> postingsLists = new ArrayList<>();
+    private ArrayList<TokenIndexData> getPostingsLists(Query query) throws IllegalArgumentException {
+        ArrayList<TokenIndexData> postingsLists = new ArrayList<>();
 
         // Retrieve all postingsLists for query tokens
         for (int i = 0; i < query.queryterm.size(); i++) {
@@ -513,7 +513,7 @@ public class Searcher {
 
             // If one term does not exist, whole intersection query fails
             if (tokenList != null)
-                postingsLists.add(new PhraseToken(token, i, tokenList));
+                postingsLists.add(new TokenIndexData(token, i, tokenList));
             else
                 throw new IllegalArgumentException("Token " + token + " has no matches");
         }
