@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.StringTokenizer;
 
 import ir.PostingsEntry;
@@ -73,6 +74,9 @@ public class HITSRanker {
      * Sparse vector containing authority scores
      */
     SparseVector authorities;
+
+    SparseVector oldHubs;
+    SparseVector oldAuths;
 
     SparseMatrix origA;
     SparseMatrix origAT;
@@ -127,6 +131,12 @@ public class HITSRanker {
     public HITSRanker(String linksFilename, String titlesFilename, Index index) {
         this.index = index;
         numberOfDocs = readDocs(linksFilename, titlesFilename);
+
+        oldHubs = new SparseVector(numberOfDocs);
+        oldAuths = new SparseVector(numberOfDocs);
+
+        hubs = new SparseVector(numberOfDocs);
+        authorities = new SparseVector(numberOfDocs);
 
         // for (Map.Entry<String, Integer> e: docNumber.entrySet()) {
         //     System.err.println(e.getKey() + ": " + e.getValue());
@@ -220,6 +230,9 @@ public class HITSRanker {
                 i++;
             }
 
+            in.close();
+            inTitles.close();
+
         } catch (FileNotFoundException e) {
             System.err.println("File " + linksFilename + " not found!");
         } catch (IOException e) {
@@ -254,13 +267,14 @@ public class HITSRanker {
      *
      * @param titles The titles of the documents in the root set
      */
-    private void iterate(String[] titles) {
-        SparseVector oldHubs = new SparseVector(numberOfDocs);
-        SparseVector oldAuths = new SparseVector(numberOfDocs);
+    private void iterate(Set<Integer> baseSet) {
+        // SparseVector oldHubs = new SparseVector(numberOfDocs);
+        // SparseVector oldAuths = new SparseVector(numberOfDocs);
 
-        hubs = new SparseVector(numberOfDocs);
-        authorities = new SparseVector(numberOfDocs);
+        // hubs = new SparseVector(numberOfDocs);
+        // authorities = new SparseVector(numberOfDocs);
 
+        // for (int i: baseSet) {
         for (int i = 0; i < numberOfDocs; i++) {
             hubs.put(i, 1.0);
             authorities.put(i, 1.0);
@@ -268,8 +282,8 @@ public class HITSRanker {
 
         int i = 0;
         double err = 10;
-        while (err > EPSILON && i < MAX_NUMBER_OF_STEPS) {
-            System.err.println("Iteration: " + i);
+        while (err > EPSILON && i < 5) {
+            // System.err.println("Iteration: " + i);
             i++;
             oldHubs = hubs;
             oldAuths = authorities;
@@ -283,9 +297,9 @@ public class HITSRanker {
 
         System.err.println("Iterations: " + i);
 
-        displayTopResults(hubs);
-        System.err.println();
-        displayTopResults(authorities);
+        // displayTopResults(hubs);
+        // System.err.println();
+        // displayTopResults(authorities);
     }
 
     /**
@@ -323,7 +337,7 @@ public class HITSRanker {
         ArrayList<Integer> rootSet = new ArrayList<>();
         rootSet.ensureCapacity(post.size());
 
-        String[] docTitles = new String[post.size()];
+        // String[] docTitles = new String[post.size()];
 
         int i = 0;
         for (PostingsEntry pe: post) {
@@ -331,13 +345,14 @@ public class HITSRanker {
 
             int internalID = titleToId.get(docTitle);
 
-            docTitles[i++] = docTitle;
+            // docTitles[i++] = docTitle;
             rootSet.add(internalID);
         }
 
         HashSet<Integer> baseSet = new HashSet<>();
 
         for (int rootDoc: rootSet) {
+            baseSet.add(rootDoc);
             if (origA.containsKey(rootDoc)) {
                 for (Map.Entry<Integer, Double> j: origA.get(rootDoc).entrySet()) {
                     baseSet.add(j.getKey());
@@ -349,6 +364,8 @@ public class HITSRanker {
                 }
             }
         }
+
+        System.err.println("Base set size: " + baseSet.size());
 
         A = new SparseMatrix(numberOfDocs, numberOfDocs);
         AT = new SparseMatrix(numberOfDocs, numberOfDocs);
@@ -362,16 +379,61 @@ public class HITSRanker {
             }
         }
 
-        iterate(docTitles);
+        // AT = A.getTransposed();
 
+        iterate(baseSet);
+
+        SparseVector all = new SparseVector(numberOfDocs);
+        all.putAll(hubs);
+        all.putAll(authorities);
+
+        System.err.println("Total number of returned query results: " + all.size());
+
+        HashSet<Integer> processedIDs = new HashSet<>();
+        PostingsList results = new PostingsList();
+
+        int k = 0; 
+
+        double score = 0.0;
         for (Map.Entry<Integer, Double> ID: hubs.entrySet()) {
             double hubScore = ID.getValue();
-            double authScore = authorities.get(ID.getKey());
+            if (authorities.containsKey(ID.getKey())) {
+                double authScore = authorities.get(ID.getKey());
+                score = (hubScore > authScore) ? hubScore : authScore;
+            } else {
+                score = hubScore;
+            }
 
+            try {
+                int docID = Index.docNamesToID.get("davisWiki/" + IDToTitle.get(ID.getKey()));
+                results.add(new PostingsEntry(docID, score));
+            } catch (NullPointerException e) {
+                k++;
+            }
+
+            processedIDs.add(ID.getKey());
+            score = 0.0;
             // int searcherDocID = docName[ID.getKey()];
         }
 
-        return post;
+        for (Map.Entry<Integer, Double> ID: authorities.entrySet()) {
+            if (!processedIDs.contains(ID.getKey())) {
+                try {
+                    double authScore = authorities.get(ID.getKey());
+                // System.err.println(IDToTitle.get(ID.getKey()));
+                    int docID = Index.docNamesToID.get("davisWiki/" + IDToTitle.get(ID.getKey()));
+                    results.add(new PostingsEntry(docID, authScore));
+                    // System.err.println(IDToTitle.get(ID.getKey()));
+                } catch (NullPointerException e) {
+                    k++;
+                }
+            }
+        }
+
+        System.err.println("Number of lost documents: " + k);
+        System.err.println("Results size: " + results.size() + "\n");
+
+        return results;
     }
 
     /**
@@ -434,7 +496,7 @@ public class HITSRanker {
      */
     void rank() {
         initiateProbabilityMatrix(numberOfDocs);
-        iterate(titleToId.keySet().toArray(new String[0]));
+        iterate(null);
         HashMap<Integer, Double> sortedHubs = sortHashMapByValue(hubs);
         HashMap<Integer, Double> sortedAuthorities = sortHashMapByValue(authorities);
         writeToFile(sortedHubs, "hubs_top_30.txt", 30);
