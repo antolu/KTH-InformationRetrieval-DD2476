@@ -40,7 +40,7 @@ public class HITSRanker {
      * Convergence criterion: hub and authority scores do not change more that
      * EPSILON from one iteration to another.
      */
-    final static double EPSILON = 0.001;
+    final static double EPSILON = 0.00001;
 
     /**
      * The inverted index
@@ -75,6 +75,7 @@ public class HITSRanker {
     SparseMatrix A;
     SparseMatrix AAT;
     SparseMatrix ATA;
+    SparseMatrix AT;
 
     private static final String INDEXDIR = "index/";
     private static final String DATADIR = "data/";
@@ -121,48 +122,6 @@ public class HITSRanker {
     public HITSRanker(String linksFilename, String titlesFilename, Index index) {
         this.index = index;
         numberOfDocs = readDocs(linksFilename, titlesFilename);
-
-        SparseMatrix A = new SparseMatrix(2, 2);
-
-        A.newRow(0);
-        A.newRow(1);
-        A.get(0).put(0, 2.0);
-        A.get(0).put(1, 3.0);
-        A.get(1).put(1, 7.0);
-
-        SparseMatrix AT = A.getTransposed();
-        // SparseMatrix AT = new SparseMatrix(2, 2);
-
-        // AT.newRow(0);
-        // AT.newRow(1);
-        // AT.get(0).put(0, 2.0);
-        // AT.get(1).put(0, 3.0);
-        // AT.get(1).put(1, 7.0);
-
-        long startTime = System.nanoTime();
-        SparseMatrix aat = A.multiply(AT);
-        long endTime = System.nanoTime();
-
-        double duration = ((double)(endTime - startTime))/1000000000.0;
-        System.err.printf("New method: duration: %fs%n%n", duration);
-
-        startTime = System.nanoTime();
-        aat = A.getAAT();
-        endTime = System.nanoTime();
-
-        duration = ((double)(endTime - startTime))/1000000000.0;
-        System.err.printf("Old method: %fs%n%n", duration);
-
-        System.err.print("A: ");
-        System.err.println(A);
-
-        System.err.print("AT: ");
-        System.err.println(AT);
-
-        System.err.print("AAT: ");
-        System.err.println(aat);
-
-        // System.exit(1);
     }
 
     /* --------------------------------------------- */
@@ -260,22 +219,7 @@ public class HITSRanker {
 			}
         }
 
-        SparseMatrix AT = A.getTransposed();
-        
-        System.err.println("Calculating matrix");
-        long startTime = System.nanoTime();
-        AAT = A.multiply(AT);
-        long endTime = System.nanoTime();
-
-        // double duration = ((double)(endTime - startTime))/1000000000.0;
-        // System.err.printf("New method: duration: %fs%n%n", duration);
-
-        // startTime = System.nanoTime();
-        // AAT = A.getAAT();
-        // endTime = System.nanoTime();
-
-        // duration = ((double)(endTime - startTime))/1000000000.0;
-        // System.err.printf("Old method: %fs%n%n", duration);
+        AT = A.getTransposed();
     }
 
     /**
@@ -285,14 +229,14 @@ public class HITSRanker {
      */
     private void iterate(String[] titles) {
         SparseVector oldHubs = new SparseVector(numberOfDocs);
-        // SparseVector oldAuths = new SparseVector(numberOfDocs);
+        SparseVector oldAuths = new SparseVector(numberOfDocs);
 
         hubs = new SparseVector(numberOfDocs);
         authorities = new SparseVector(numberOfDocs);
 
         for (int i = 0; i < numberOfDocs; i++) {
             hubs.put(i, 1.0);
-            // authorities.put(i, 1.0);
+            authorities.put(i, 1.0);
         }
 
         int i = 0;
@@ -301,15 +245,20 @@ public class HITSRanker {
             System.err.println("Iteration: " + i);
             i++;
             oldHubs = hubs;
-            hubs = AAT.multiplyVector(hubs);
+            oldAuths = authorities;
+            hubs = A.multiplyVector(oldAuths);
+            authorities = AT.multiplyVector(oldHubs);
             normalize(hubs);
+            normalize(authorities);
 
-            err = alignment(oldHubs, hubs);
+            err = alignment(oldHubs, hubs) + alignment(oldAuths, authorities);
         }
 
         System.err.println("Iterations: " + i);
 
         displayTopResults(hubs);
+        System.err.println();
+        displayTopResults(authorities);
     }
 
     /**
@@ -553,47 +502,6 @@ public class HITSRanker {
             }
 
             return prod;
-        }
-
-        /** 
-         * Computes and returns the matrix A * A^The
-         * 
-         * @return The matrix multiplied with its transpose
-         */
-        public SparseMatrix getAAT() {
-
-            SparseMatrix res = new SparseMatrix(m, m);
-
-            for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> row : entrySet()) {
-                LinkedHashMap<Integer, Double> newRow = res.newRow(row.getKey());
-
-                double[] fastRow = new double[m];
-                for (Map.Entry<Integer, Double> col : row.getValue().entrySet()) {
-                    int column = col.getKey();
-
-                    for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> m : entrySet()) {
-                        try {
-                            fastRow[m.getKey()] += col.getValue() * m.getValue().get(column);
-                        } catch (NullPointerException e) {
-                            // Do nothing, value does not exist
-                        }
-                    }
-                }
-                for (int i = 0; i < fastRow.length; i++) {
-                    if (fastRow[i] != 0) {
-                        newRow.put(i, fastRow[i]);
-                    }
-                }
-            }
-
-            return res;
-        }
-
-        public SparseMatrix getATA() {
-
-            SparseMatrix res = new SparseMatrix(n, n);
-
-            return res;
         }
 
         public SparseMatrix getTransposed() {
