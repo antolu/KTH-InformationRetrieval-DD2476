@@ -389,49 +389,59 @@ public class HITSRanker {
 
         System.err.println("Total number of returned query results: " + all.size());
 
-        HashSet<Integer> processedIDs = new HashSet<>();
+        // HashSet<Integer> processedIDs = new HashSet<>();
         PostingsList results = new PostingsList();
 
         int k = 0; 
 
         double score = 0.0;
-        for (Map.Entry<Integer, Double> ID: hubs.entrySet()) {
-            double hubScore = ID.getValue();
-            if (authorities.containsKey(ID.getKey())) {
-                double authScore = authorities.get(ID.getKey());
-                score = (hubScore > authScore) ? hubScore : authScore;
-            } else {
-                score = hubScore;
+        double authScore = 0.0;
+        double hubScore = 0.0;
+        for (int ID: baseSet) {
+            try {
+                hubScore = hubs.get(ID);
+            } catch (NullPointerException e) {
+            }
+            try {
+                authScore = authorities.get(ID);
+            } catch (NullPointerException e) {
             }
 
+            if (hubScore != authScore)
+                score = (hubScore > authScore) ? hubScore : authScore;
+
             try {
-                int docID = Index.docNamesToID.get("davisWiki/" + IDToTitle.get(ID.getKey()));
+                int docID = Index.docNamesToID.get("davisWiki/" + IDToTitle.get(ID));
                 results.add(new PostingsEntry(docID, score));
             } catch (NullPointerException e) {
                 k++;
             }
 
-            processedIDs.add(ID.getKey());
+            // processedIDs.add(ID.getKey());
             score = 0.0;
+            hubScore = 0.0;
+            authScore = 0.0;
             // int searcherDocID = docName[ID.getKey()];
         }
 
-        for (Map.Entry<Integer, Double> ID: authorities.entrySet()) {
-            if (!processedIDs.contains(ID.getKey())) {
-                try {
-                    double authScore = authorities.get(ID.getKey());
-                // System.err.println(IDToTitle.get(ID.getKey()));
-                    int docID = Index.docNamesToID.get("davisWiki/" + IDToTitle.get(ID.getKey()));
-                    results.add(new PostingsEntry(docID, authScore));
-                    // System.err.println(IDToTitle.get(ID.getKey()));
-                } catch (NullPointerException e) {
-                    k++;
-                }
-            }
-        }
+        // for (Map.Entry<Integer, Double> ID: authorities.entrySet()) {
+        //     if (!processedIDs.contains(ID.getKey())) {
+        //         try {
+        //             double authScore = authorities.get(ID.getKey());
+        //         // System.err.println(IDToTitle.get(ID.getKey()));
+        //             int docID = Index.docNamesToID.get("davisWiki/" + IDToTitle.get(ID.getKey()));
+        //             results.add(new PostingsEntry(docID, authScore));
+        //             // System.err.println(IDToTitle.get(ID.getKey()));
+        //         } catch (NullPointerException e) {
+        //             k++;
+        //         }
+        //     }
+        // }
 
         System.err.println("Number of lost documents: " + k);
         System.err.println("Results size: " + results.size() + "\n");
+
+        Collections.sort(results);
 
         return results;
     }
