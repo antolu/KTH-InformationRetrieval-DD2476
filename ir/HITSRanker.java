@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
+import ir.PostingsEntry;
 public class HITSRanker {
 
     /**
@@ -51,6 +52,7 @@ public class HITSRanker {
      * Mapping from the titles to internal document ids used in the links file
      */
     HashMap<String, Integer> titleToId = new HashMap<String, Integer>();
+    HashMap<Integer, String> IDToTitle = new HashMap<>();
 
     /**
      * Sparse vector containing hub scores
@@ -71,6 +73,9 @@ public class HITSRanker {
      * Sparse vector containing authority scores
      */
     SparseVector authorities;
+
+    SparseMatrix origA;
+    SparseMatrix origAT;
 
     SparseMatrix A;
     SparseMatrix AAT;
@@ -122,6 +127,14 @@ public class HITSRanker {
     public HITSRanker(String linksFilename, String titlesFilename, Index index) {
         this.index = index;
         numberOfDocs = readDocs(linksFilename, titlesFilename);
+
+        // for (Map.Entry<String, Integer> e: docNumber.entrySet()) {
+        //     System.err.println(e.getKey() + ": " + e.getValue());
+        // }
+
+        // System.err.println(titleToId.get("StevenWong.f"));
+
+        initiateProbabilityMatrix(numberOfDocs);
     }
 
     /* --------------------------------------------- */
@@ -193,6 +206,20 @@ public class HITSRanker {
             } else {
                 System.err.print("done. ");
             }
+            System.err.print("Reading titles... ");
+            BufferedReader inTitles = new BufferedReader(new FileReader(titlesFilename));
+
+            int i = 0;
+            while ((line = inTitles.readLine()) != null) {
+                int index = line.indexOf(";");
+                String internalTitle = line.substring(0, index);
+                String docName = line.substring(index+1);
+
+                titleToId.put(docName, this.docNumber.get(internalTitle));
+                IDToTitle.put(this.docNumber.get(internalTitle), docName);
+                i++;
+            }
+
         } catch (FileNotFoundException e) {
             System.err.println("File " + linksFilename + " not found!");
         } catch (IOException e) {
@@ -208,18 +235,18 @@ public class HITSRanker {
 	 * @param numberOfDocs Number of documents (size of G matrix)
 	 */
 	void initiateProbabilityMatrix(int numberOfDocs) {
-		A = new SparseMatrix(numberOfDocs, numberOfDocs);
+		origA = new SparseMatrix(numberOfDocs, numberOfDocs);
 
 		/** Calculate non-zero entries */
         for (int i = 0; i < numberOfDocs; i++) {
 			if (link.containsKey(i)) {
-				LinkedHashMap<Integer, Double> row = A.newRow(i);
+				LinkedHashMap<Integer, Double> row = origA.newRow(i);
 				for (int j: link.get(i).keySet())
 					row.put(j, 1.0);
 			}
         }
 
-        AT = A.getTransposed();
+        origAT = origA.getTransposed();
     }
 
     /**
@@ -292,9 +319,58 @@ public class HITSRanker {
      * @return A list of postings ranked according to the hub and authority scores.
      */
     PostingsList rank(PostingsList post) {
-        //
-        // YOUR CODE HERE
-        //
+
+        ArrayList<Integer> rootSet = new ArrayList<>();
+        rootSet.ensureCapacity(post.size());
+
+        String[] docTitles = new String[post.size()];
+
+        int i = 0;
+        for (PostingsEntry pe: post) {
+            String docTitle = getFileName(Index.docNames.get(pe.docID));
+
+            int internalID = titleToId.get(docTitle);
+
+            docTitles[i++] = docTitle;
+            rootSet.add(internalID);
+        }
+
+        HashSet<Integer> baseSet = new HashSet<>();
+
+        for (int rootDoc: rootSet) {
+            if (origA.containsKey(rootDoc)) {
+                for (Map.Entry<Integer, Double> j: origA.get(rootDoc).entrySet()) {
+                    baseSet.add(j.getKey());
+                }
+            }
+            if (origAT.containsKey(rootDoc)) {
+                for (Map.Entry<Integer, Double> j: origAT.get(rootDoc).entrySet()) {
+                    baseSet.add(j.getKey());
+                }
+            }
+        }
+
+        A = new SparseMatrix(numberOfDocs, numberOfDocs);
+        AT = new SparseMatrix(numberOfDocs, numberOfDocs);
+
+        for (int baseDoc: baseSet) {
+            if (origA.containsKey(baseDoc)) {
+                A.put(baseDoc, origA.get(baseDoc));
+            }
+            if (origAT.containsKey(baseDoc)) {
+                AT.put(baseDoc, origAT.get(baseDoc));
+            }
+        }
+
+        iterate(docTitles);
+
+        for (Map.Entry<Integer, Double> ID: hubs.entrySet()) {
+            double hubScore = ID.getValue();
+            double authScore = authorities.get(ID.getKey());
+
+            // int searcherDocID = docName[ID.getKey()];
+        }
+
         return post;
     }
 
