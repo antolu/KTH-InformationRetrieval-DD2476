@@ -220,7 +220,7 @@ public class HITSRanker {
             while ((line = inTitles.readLine()) != null) {
                 int index = line.indexOf(";");
                 String internalTitle = line.substring(0, index);
-                String docName = line.substring(index+1);
+                String docName = line.substring(index + 1);
 
                 titleToId.put(docName, this.docNumber.get(internalTitle));
                 IDToTitle.put(this.docNumber.get(internalTitle), docName);
@@ -240,20 +240,20 @@ public class HITSRanker {
     }
 
     /**
-	 * Initializes the probability matrix G
-	 * 
-	 * @param numberOfDocs Number of documents (size of G matrix)
-	 */
-	void initiateProbabilityMatrix(int numberOfDocs) {
-		origA = new SparseMatrix(numberOfDocs, numberOfDocs);
+     * Initializes the probability matrix G
+     * 
+     * @param numberOfDocs Number of documents (size of G matrix)
+     */
+    void initiateProbabilityMatrix(int numberOfDocs) {
+        origA = new SparseMatrix(numberOfDocs, numberOfDocs);
 
-		/** Calculate non-zero entries */
+        /** Calculate non-zero entries */
         for (int i = 0; i < numberOfDocs; i++) {
-			if (link.containsKey(i)) {
-				LinkedHashMap<Integer, Double> row = origA.newRow(i);
-				for (int j: link.get(i).keySet())
-					row.put(j, 1.0);
-			}
+            if (link.containsKey(i)) {
+                LinkedHashMap<Integer, Double> row = origA.newRow(i);
+                for (int j : link.get(i).keySet())
+                    row.put(j, 1.0);
+            }
         }
 
         origAT = origA.getTransposed();
@@ -275,22 +275,27 @@ public class HITSRanker {
         double err = 10;
         while (err > EPSILON && i < maxIterations) {
             i++;
+
             oldHubs = hubs;
             oldAuths = authorities;
             hubs = A.multiplyVector(oldAuths);
             authorities = AT.multiplyVector(oldHubs);
+
             normalize(hubs);
             normalize(authorities);
 
+            /** only calculate alignment if not doing it realtime */
             if (maxIterations > 100)
                 err = alignment(oldHubs, hubs) + alignment(oldAuths, authorities);
         }
 
         System.err.println("Iterations: " + i);
 
-        displayTopResults(hubs);
-        System.err.println();
-        displayTopResults(authorities);
+        if (maxIterations > 100) {
+            displayTopResults(hubs);
+            System.err.println();
+            displayTopResults(authorities);
+        }
     }
 
     /**
@@ -325,11 +330,11 @@ public class HITSRanker {
      */
     PostingsList rank(PostingsList post) {
 
+        /** Construct root set */
         ArrayList<Integer> rootSet = new ArrayList<>();
         rootSet.ensureCapacity(post.size());
 
-        int i = 0;
-        for (PostingsEntry pe: post) {
+        for (PostingsEntry pe : post) {
             String docTitle = getFileName(Index.docNames.get(pe.docID));
 
             int internalID = titleToId.get(docTitle);
@@ -337,17 +342,22 @@ public class HITSRanker {
             rootSet.add(internalID);
         }
 
+        /** Construct baseset */
         HashSet<Integer> baseSet = new HashSet<>();
 
-        for (int rootDoc: rootSet) {
+        for (int rootDoc : rootSet) {
             baseSet.add(rootDoc);
+
+            /** All documents that link from rootDoc */
             if (origA.containsKey(rootDoc)) {
-                for (Map.Entry<Integer, Double> j: origA.get(rootDoc).entrySet()) {
+                for (Map.Entry<Integer, Double> j : origA.get(rootDoc).entrySet()) {
                     baseSet.add(j.getKey());
                 }
             }
+
+            /** All documents that link to rootDoc */
             if (origAT.containsKey(rootDoc)) {
-                for (Map.Entry<Integer, Double> j: origAT.get(rootDoc).entrySet()) {
+                for (Map.Entry<Integer, Double> j : origAT.get(rootDoc).entrySet()) {
                     baseSet.add(j.getKey());
                 }
             }
@@ -355,10 +365,11 @@ public class HITSRanker {
 
         System.err.println("Base set size: " + baseSet.size());
 
+        /** Construct the adjacency matrix and its transpose */
         A = new SparseMatrix(numberOfDocs, numberOfDocs);
         AT = new SparseMatrix(numberOfDocs, numberOfDocs);
 
-        for (int baseDoc: baseSet) {
+        for (int baseDoc : baseSet) {
             if (origA.containsKey(baseDoc)) {
                 A.put(baseDoc, origA.get(baseDoc));
             }
@@ -369,20 +380,15 @@ public class HITSRanker {
 
         iterate(5);
 
-        SparseVector all = new SparseVector(numberOfDocs);
-        all.putAll(hubs);
-        all.putAll(authorities);
-
-        System.err.println("Total number of returned query results: " + all.size());
-
+        /** Extract results */
         PostingsList results = new PostingsList();
 
-        int k = 0; 
+        int k = 0;
 
         double score = 0.0;
         double authScore = 0.0;
         double hubScore = 0.0;
-        for (int ID: baseSet) {
+        for (int ID : baseSet) {
             try {
                 hubScore = hubs.get(ID);
             } catch (NullPointerException e) {
@@ -477,7 +483,7 @@ public class HITSRanker {
         initiateProbabilityMatrix(numberOfDocs);
         A = origA;
         AT = origAT;
-        iterate(1000);
+        iterate(MAX_NUMBER_OF_STEPS);
         HashMap<Integer, Double> sortedHubs = sortHashMapByValue(hubs);
         HashMap<Integer, Double> sortedAuthorities = sortHashMapByValue(authorities);
         writeToFile(sortedHubs, "hubs_top_30.txt", 30);
@@ -541,9 +547,9 @@ public class HITSRanker {
         return alignment;
     }
 
-    /** 
-     * Implementation of pair class, contains an integer and double
-     * value. Sorts according to the double value.
+    /**
+     * Implementation of pair class, contains an integer and double value. Sorts
+     * according to the double value.
      */
     private class Pair implements Comparable<Pair> {
         public int first = 0;
