@@ -25,6 +25,9 @@ import java.util.Set;
 import java.util.StringTokenizer;
 
 import ir.PostingsEntry;
+import sparse.SparseMatrix;
+import sparse.SparseVector;
+
 public class HITSRanker {
 
     /**
@@ -137,12 +140,6 @@ public class HITSRanker {
 
         hubs = new SparseVector(numberOfDocs);
         authorities = new SparseVector(numberOfDocs);
-
-        // for (Map.Entry<String, Integer> e: docNumber.entrySet()) {
-        //     System.err.println(e.getKey() + ": " + e.getValue());
-        // }
-
-        // System.err.println(titleToId.get("StevenWong.f"));
 
         initiateProbabilityMatrix(numberOfDocs);
     }
@@ -267,14 +264,8 @@ public class HITSRanker {
      *
      * @param titles The titles of the documents in the root set
      */
-    private void iterate(Set<Integer> baseSet) {
-        // SparseVector oldHubs = new SparseVector(numberOfDocs);
-        // SparseVector oldAuths = new SparseVector(numberOfDocs);
+    private void iterate(int maxIterations) {
 
-        // hubs = new SparseVector(numberOfDocs);
-        // authorities = new SparseVector(numberOfDocs);
-
-        // for (int i: baseSet) {
         for (int i = 0; i < numberOfDocs; i++) {
             hubs.put(i, 1.0);
             authorities.put(i, 1.0);
@@ -282,8 +273,7 @@ public class HITSRanker {
 
         int i = 0;
         double err = 10;
-        while (err > EPSILON && i < 5) {
-            // System.err.println("Iteration: " + i);
+        while (err > EPSILON && i < maxIterations) {
             i++;
             oldHubs = hubs;
             oldAuths = authorities;
@@ -292,14 +282,15 @@ public class HITSRanker {
             normalize(hubs);
             normalize(authorities);
 
-            err = alignment(oldHubs, hubs) + alignment(oldAuths, authorities);
+            if (maxIterations > 100)
+                err = alignment(oldHubs, hubs) + alignment(oldAuths, authorities);
         }
 
         System.err.println("Iterations: " + i);
 
-        // displayTopResults(hubs);
-        // System.err.println();
-        // displayTopResults(authorities);
+        displayTopResults(hubs);
+        System.err.println();
+        displayTopResults(authorities);
     }
 
     /**
@@ -337,15 +328,12 @@ public class HITSRanker {
         ArrayList<Integer> rootSet = new ArrayList<>();
         rootSet.ensureCapacity(post.size());
 
-        // String[] docTitles = new String[post.size()];
-
         int i = 0;
         for (PostingsEntry pe: post) {
             String docTitle = getFileName(Index.docNames.get(pe.docID));
 
             int internalID = titleToId.get(docTitle);
 
-            // docTitles[i++] = docTitle;
             rootSet.add(internalID);
         }
 
@@ -379,9 +367,7 @@ public class HITSRanker {
             }
         }
 
-        // AT = A.getTransposed();
-
-        iterate(baseSet);
+        iterate(5);
 
         SparseVector all = new SparseVector(numberOfDocs);
         all.putAll(hubs);
@@ -389,7 +375,6 @@ public class HITSRanker {
 
         System.err.println("Total number of returned query results: " + all.size());
 
-        // HashSet<Integer> processedIDs = new HashSet<>();
         PostingsList results = new PostingsList();
 
         int k = 0; 
@@ -417,26 +402,10 @@ public class HITSRanker {
                 k++;
             }
 
-            // processedIDs.add(ID.getKey());
             score = 0.0;
             hubScore = 0.0;
             authScore = 0.0;
-            // int searcherDocID = docName[ID.getKey()];
         }
-
-        // for (Map.Entry<Integer, Double> ID: authorities.entrySet()) {
-        //     if (!processedIDs.contains(ID.getKey())) {
-        //         try {
-        //             double authScore = authorities.get(ID.getKey());
-        //         // System.err.println(IDToTitle.get(ID.getKey()));
-        //             int docID = Index.docNamesToID.get("davisWiki/" + IDToTitle.get(ID.getKey()));
-        //             results.add(new PostingsEntry(docID, authScore));
-        //             // System.err.println(IDToTitle.get(ID.getKey()));
-        //         } catch (NullPointerException e) {
-        //             k++;
-        //         }
-        //     }
-        // }
 
         System.err.println("Number of lost documents: " + k);
         System.err.println("Results size: " + results.size() + "\n");
@@ -489,7 +458,7 @@ public class HITSRanker {
                 int i = 0;
                 for (Map.Entry<Integer, Double> e : map.entrySet()) {
                     i++;
-                    writer.write(e.getKey() + ": " + String.format("%.5g%n", e.getValue()));
+                    writer.write(docName[e.getKey()] + ": " + String.format("%.5g%n", e.getValue()));
                     if (i >= k)
                         break;
                 }
@@ -506,7 +475,9 @@ public class HITSRanker {
      */
     void rank() {
         initiateProbabilityMatrix(numberOfDocs);
-        iterate(null);
+        A = origA;
+        AT = origAT;
+        iterate(1000);
         HashMap<Integer, Double> sortedHubs = sortHashMapByValue(hubs);
         HashMap<Integer, Double> sortedAuthorities = sortHashMapByValue(authorities);
         writeToFile(sortedHubs, "hubs_top_30.txt", 30);
@@ -586,146 +557,6 @@ public class HITSRanker {
         @Override
         public int compareTo(Pair other) {
             return Double.compare(value, other.value);
-        }
-    }
-
-    /**
-     * Implementation of sparse matrix using hashmaps
-     * 
-     * <p> The index of the upper most layer represents the row of matrix, 
-     * and its value the row contents. </p>
-     */
-    protected class SparseMatrix extends HashMap<Integer, LinkedHashMap<Integer, Double>> {
-
-        protected int m;
-        protected int n;
-
-        /** Value for row if it its empty */
-        protected double emptyRowValue;
-
-        /** Value for row if it has non-zero entries */
-        protected double defaultRowValue;
-
-        public SparseMatrix(int m, int n) {
-            super();
-            this.m = m;
-            this.n = n;
-        }
-
-        public LinkedHashMap<Integer, Double> newRow(int i) {
-            LinkedHashMap<Integer, Double> row = new LinkedHashMap<>();
-
-            put(i, row);
-            return row;
-        }
-
-        /**
-         * Right multiplies the matrix with a vector
-         * 
-         * @param vector The vector
-         * 
-         * @return The product
-         * 
-         * @throws IllegalArgumentException When matrix-vector dimensions are
-         *                                  incompatible.
-         */
-        public SparseVector multiplyVector(SparseVector vector) {
-            if (this.n != vector.m) {
-                throw new IllegalArgumentException(
-                        "Bad matrix dimensions: " + this.m + "x" + this.n + " , " + 1 + "x" + vector.m);
-            }
-
-            SparseVector prod = new SparseVector(vector.m);
-
-            for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> matrixRow : entrySet()) {
-                double elem = 0.0;
-                for (Map.Entry<Integer, Double> e : matrixRow.getValue().entrySet()) {
-                    try {
-                        elem += e.getValue() * vector.get(e.getKey());
-                    } catch (NullPointerException ex) {
-                        // Do nothing, element does not exist in vector
-                    }
-                }
-                prod.put(matrixRow.getKey(), elem);
-            }
-
-            return prod;
-        }
-
-        public SparseMatrix getTransposed() {
-            SparseMatrix transposed = new SparseMatrix(n, m);
-
-            for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> row: entrySet()) {
-                for (Map.Entry<Integer, Double> val: row.getValue().entrySet()) {
-                    if (!transposed.containsKey(val.getKey())) {
-                        LinkedHashMap<Integer, Double> transposedRow = transposed.newRow(val.getKey());
-                        transposedRow.put(row.getKey(), val.getValue());
-                    } {
-                        transposed.get(val.getKey()).put(row.getKey(), val.getValue());
-                    }
-                }
-            }
-
-            return transposed;
-        }
-
-        public SparseMatrix multiply(SparseMatrix other) {
-
-            if (n != other.m) {
-                throw new IllegalArgumentException();
-            }
-
-            SparseMatrix prod = new SparseMatrix(m, other.n);
-
-            for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> row: entrySet()) {
-                double[] fastRow = new double[other.n];
-
-                LinkedHashMap<Integer, Double> prodRow = prod.newRow(row.getKey());
-
-                for (Map.Entry<Integer, Double> e: row.getValue().entrySet()) {
-                    if (other.containsKey(e.getKey())) {
-                        LinkedHashMap<Integer, Double> otherRow = other.get(e.getKey());
-
-                        double eValue = e.getValue();
-                        for (Map.Entry<Integer, Double> otherE: otherRow.entrySet()) {
-                            fastRow[otherE.getKey()] += eValue * otherE.getValue();
-                        }
-                    }
-                }
-
-                for (int i = 0; i < fastRow.length; i++) {
-                    if (fastRow[i] != 0) {
-                        prodRow.put(i, fastRow[i]);
-                    }
-                }
-            }
-
-            return prod;
-        }
-
-        @Override
-        public String toString() {
-            StringBuilder sb = new StringBuilder();
-            for (Map.Entry<Integer, LinkedHashMap<Integer, Double>> i : entrySet()) {
-                for (Map.Entry<Integer, Double> j : i.getValue().entrySet()) {
-                    sb.append("(" + i.getKey() + ", " + j.getKey() + "):" + j.getValue() + " ");
-                }
-                sb.append("\n");
-            }
-
-            return sb.toString();
-        }
-    }
-
-    /**
-     * Implementation of a sparse vector using a hashmap
-     */
-    protected class SparseVector extends HashMap<Integer, Double> {
-
-        protected int m;
-
-        public SparseVector(int m) {
-            this.m = m;
         }
     }
 
