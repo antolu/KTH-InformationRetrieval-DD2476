@@ -187,7 +187,12 @@ public class Searcher {
                 if (!savedDocIDs.contains(pe.docID)) {
                     String docName = Index.docNames.get(pe.docID);
                     String strippedDocName = docName.substring(docName.indexOf("/")+1);
-                    pe.score = Index.pageranks.get(strippedDocName);
+                    try {
+                        pe.score = Index.pageranks.get(strippedDocName);
+                    } catch (NullPointerException e) {
+                        System.err.println(strippedDocName);
+                    } 
+                    
                     results.add(pe);
 
                     savedDocIDs.add(pe.docID);
