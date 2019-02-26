@@ -230,10 +230,37 @@ For `m=1` the precision of the MC method is indeed very good. The goodness at 1e
 
 Cyclic start does in general seem to outperform random start. 
 
+> Finally, show your list of 30 top documents for the `linksSvwiki.txt` graph. Argue for why they are correct by looking up the titles of the top documents in the file `svwikiTitles.txt`. 
+
+113605 (highest score) links to 174465, so it has high score.
+
+110193 links to 51553 links.
+
+865076 is linked to by most pages, so it has high score. It links to 865079 which links to 50673, which in turn links to 61554, 836 and 113605. It all makes sense. 
+
 ### 2.8 
 
 > Compare your 30 highest ranked hub and authority scores to the ones provided in the files. Does the ranking make sense? How does it compare to pageranks?
 
+Top document in hub score links to a shitton of documents, so it makes sense it is a good hub. Top authorities aren't that highly ranked, but seems like they are linked to by a lot of documents. 
+
 > After you have implemented the HITS algorithm, you'll need to integrate HITS ranking into your search engine. On the way there are several issues that need to be addressed:
 > 1. Unlike PageRank, HITS method should run on the fly and only on the query-specific subset of documents. How should one select this subset of documents correctly?
 > 2. The HITS algorithm provides two scores for each document in the subset, but the search engine can show only one score. How should one combine these two scores in a meaningful way? Can we use linear combination?
+
+1. The root set is all the documents that explicitly matches the query, and then we construct the base set which is all the documents that link to, and link from the root set. Then we just grab the rows from the A and AT matrices and iterate.
+2.  One can use a linear combination, but should then weight the hub and authority score equally. The alternative is to take the largest score of the two, so the page is either a good authority or a good hub. 
+
+> You should be able to list similarities and differences between PageRank and HITS and argue about the advantages and disadvantages of each algorithm. 
+
+* HITS has to run at query-time, which affects performance. 
+* HITS is query dependant and does only a local link analysis, but may return more relevant documents.
+* HITS cannot detect advertisement. 
+* HITS can easily be spammed by adding outlinks from own page. 
+* HITS computes two scores for a single document, need to combine them meaningfully. 
+
+* PageRank only returns documents that immediately contain the query words. 
+* PageRank is global score.
+* PageRank is query independent. 
+* Older pages might have higher PageRank, because of obsolete links. 
+* PageRank is easily exploitable (link farms).
