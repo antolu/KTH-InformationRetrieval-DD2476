@@ -107,22 +107,22 @@ public class Searcher {
         }
 
         /** Normalize q */
-        int val = 0;
-        for (double d: q) {
-            if (norm == Normalizer.EUCLIDEAN)
-                val += Math.pow(d, 2);
-            else if (norm == Normalizer.MANHATTAN)
-                val += d;
-        }
+        // int val = 0;
+        // for (double d: q) {
+        //     if (norm == Normalizer.EUCLIDEAN)
+        //         val += Math.pow(d, 2);
+        //     else if (norm == Normalizer.MANHATTAN)
+        //         val += d;
+        // }
 
-        for (int i = 0; i < q.size(); i++) {
-            double denominator = 1.0;
-            if (norm == Normalizer.EUCLIDEAN)
-                denominator = Math.sqrt(val);
-            else if (norm == Normalizer.MANHATTAN)
-                denominator = val;
-            q.set(i, q.get(i) / denominator);
-        }
+        // for (int i = 0; i < q.size(); i++) {
+        //     double denominator = 1.0;
+        //     if (norm == Normalizer.EUCLIDEAN)
+        //         denominator = Math.sqrt(val);
+        //     else if (norm == Normalizer.MANHATTAN)
+        //         denominator = val;
+        //     q.set(i, q.get(i) / denominator);
+        // }
 
 
         ArrayList<TokenIndexData> postingsLists = getPostingsLists(query);
