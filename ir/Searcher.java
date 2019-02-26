@@ -142,21 +142,9 @@ public class Searcher {
 
                 if (!scores.containsKey(pe.docID)) {
                     scores.put(pe.docID, new PostingsEntry(pe.docID, score));
-
-                    if (norm == Normalizer.EUCLIDEAN)
-                        denom.put(pe.docID, Math.pow(tfidf, 2));
-                    else if (norm == Normalizer.MANHATTAN) {
-                        denom.put(pe.docID, tfidf);
-                    }
                 }
                 else {
                     scores.get(pe.docID).score += score;
-
-                    if (norm == Normalizer.EUCLIDEAN)
-                        denom.put(pe.docID, denom.get(pe.docID) + Math.pow(tfidf, 2));
-                    else if (norm == Normalizer.MANHATTAN) {
-                        denom.put(pe.docID, denom.get(pe.docID) + tfidf);
-                    }
                 }
             }
             i++;
@@ -168,12 +156,7 @@ public class Searcher {
         for (int docID: scores.keySet()) {
             PostingsEntry pe = scores.get(docID);
 
-            if (norm == Normalizer.EUCLIDEAN)
-                // pe.score /= (Math.sqrt(denom.get(docID)));
-                pe.score /= Index.docLengths.get(pe.docID);
-            else if (norm == Normalizer.MANHATTAN) {
-                pe.score /= denom.get(docID);
-            }
+            pe.score /= Index.docLengths.get(pe.docID);
 
             results.add(pe);
         }
@@ -185,7 +168,7 @@ public class Searcher {
 
     private double tfidf(PostingsEntry pe, PostingsList pl) {
         double tf = pe.getOccurences();
-        double idf = Math.log10(Index.docNames.size() / pl.size());
+        double idf = Math.log(Index.docNames.size() / pl.size());
 
         double tfidf = tf * idf;
         return tfidf;
