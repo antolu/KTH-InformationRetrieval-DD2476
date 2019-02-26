@@ -6,18 +6,27 @@
     "configurations": [
         {
             "type": "java",
+            "name": "CodeLens (Launch) - SparseTest",
+            "request": "launch",
+            "mainClass": "pagerank.SparseTest",
+            "projectName": "DD2476_7af0bc28"
+        },
+        {
+            "type": "java",
             "name": "Debug (Launch) - Current File",
             "request": "launch",
             "mainClass": "${file}"
         },
         {
             "type": "java",
-            "name": "Debug (Launch)-Persistent",
+            "name": "Debug - Persistent",
             "request": "launch",
-            "cwd" : "${workspaceRoot}",
+            "cwd": "${workspaceRoot}",
             "mainClass": "ir.Engine",
-            "classPaths": ["build"],
-            "args" : [
+            "classPaths": [
+                "build"
+            ],
+            "args": [
                 "-d",
                 "davisWiki",
                 "-l",
@@ -29,33 +38,75 @@
         },
         {
             "type": "java",
-            "name": "Debug (Launch)-Search Engine",
+            "name": "Debug - Search Engine",
             "request": "launch",
-            "cwd" : "${workspaceRoot}",
-            "classPaths": ["build"],
+            "cwd": "${workspaceRoot}",
+            "classPaths": [
+                "build"
+            ],
             "mainClass": "ir.Engine",
-            "args" : [
+            "args": [
                 "-d",
                 "davisWiki",
                 "-l",
                 "ir19.gif",
                 "-p",
-                "patterns.txt",
+                "patterns.txt"
             ]
         },
         {
             "type": "java",
-            "name": "Debug (Launch)-Guardian index",
+            "name": "Debug - Guardian index",
             "request": "launch",
-            "cwd" : "${workspaceRoot}",
+            "cwd": "${workspaceRoot}",
             "mainClass": "ir.Engine",
-            "args" : [
+            "args": [
                 "-d",
                 "guardian",
                 "-l",
                 "ir19.gif",
                 "-p",
-                "patterns.txt",
+                "patterns.txt"
+            ]
+        },
+        {
+            "type": "java",
+            "name": "Debug - PageRankSparse",
+            "request": "launch",
+            "cwd": "${workspaceRoot}",
+            "classPaths": [
+                "build"
+            ],
+            "mainClass": "pagerank.PageRankSparse",
+            "args": [
+                "pagerank/linksDavis.txt"
+            ]
+        },
+        {
+            "type": "java",
+            "name": "Debug - MonteCarlo",
+            "request": "launch",
+            "cwd": "${workspaceRoot}",
+            "classPaths": [
+                "build"
+            ],
+            "mainClass": "montecarlo.MonteCarlo",
+            "args": [
+                "pagerank/linksSvwiki.txt"
+            ]
+        },
+        {
+            "type": "java",
+            "name": "Debug - HITS",
+            "request": "launch",
+            "cwd": "${workspaceRoot}",
+            "classPaths": [
+                "build"
+            ],
+            "mainClass": "ir.HITSRanker",
+            "args": [
+                "data/linksDavis.txt",
+                "data/davisTitles.txt"
             ]
         }
     ]

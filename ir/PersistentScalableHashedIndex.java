@@ -1,17 +1,17 @@
 package ir;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.zip.DataFormatException;
-import java.io.File;
-import java.io.BufferedReader;
-import java.io.FileReader;
 
 public class PersistentScalableHashedIndex extends PersistentHashedIndex {
 
@@ -136,8 +136,8 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
             String line;
             while ((line = br.readLine()) != null) {
                 String[] data = line.split(";");
-                names.put(new Integer(data[0]), data[1]);
-                lengths.put(new Integer(data[0]), new Integer(data[2]));
+                names.put(Integer.parseInt(data[0]), data[1]);
+                lengths.put(Integer.parseInt(data[0]), Integer.parseInt(data[2]));
             }
         }
         freader.close();
@@ -455,7 +455,8 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex {
         System.err.println("[INFO] Moving files into place...");
 
         try {
-
+            writeTokenIndex();
+            
             /** re-point the index files */
             dataFile.close();
             dictionaryFile.close();

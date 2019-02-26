@@ -8,14 +8,13 @@
 package ir;
 
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.NoSuchElementException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.NoSuchElementException;
 
 /**
  * Searches an index for results of a query.
@@ -28,10 +27,20 @@ public class Searcher {
     /** The k-gram index to be searched by this Searcher */
     KGramIndex kgIndex;
 
+    private static final String DATADIR = "data";
+    HITSRanker HITSRanker;
+
+    private static final Normalizer norm = Normalizer.EUCLIDEAN;
+
+    /** How much the tfidf weigths during ranked query */
+    private static final double RANK_WEIGHT = 0.1;
+
     /** Constructor */
     public Searcher(Index index, KGramIndex kgIndex) {
         this.index = index;
         this.kgIndex = kgIndex;
+
+        HITSRanker = new HITSRanker(DATADIR + "/linksDavis.txt", DATADIR + "/davisTitles.txt", index);
     }
 
     /**
@@ -45,6 +54,19 @@ public class Searcher {
             return null;
 
         try {
+
+            if (queryType == QueryType.RANKED_QUERY) {
+                if (rankingType == RankingType.TF_IDF) {
+                    return getTfidfQuery(query);
+                } else if (rankingType == RankingType.COMBINATION) {
+                    return getCombinedQuery(query);
+                } else if (rankingType == RankingType.PAGERANK) {
+                    return getPagerankQuery(query);
+                } else if (rankingType == RankingType.HITS) {
+                    return getHITSQuery(query);
+                }
+            }
+
             // Not sufficient number of words for other query
             if (query.queryterm.size() < 2) {
                 return index.getPostings(query.queryterm.get(0).term);
@@ -67,6 +89,181 @@ public class Searcher {
             return null;
         }
 
+    }
+
+    private PostingsList getTfidfQuery(Query query) {
+
+        /** Build query vector */
+        ArrayList<Double> q = new ArrayList<>();
+
+        HashMap<String, Integer> tkns = new HashMap<>();
+        for (int i = 0; i < query.queryterm.size(); i++) {
+            if (!tkns.containsKey(query.queryterm.get(i).term))
+                q.add(1.0);
+            else {
+                int idx = tkns.get(query.queryterm.get(i).term);
+                q.set(idx, q.get(idx) + 1.0);
+            }
+        }
+
+        /** Normalize q */
+        // int val = 0;
+        // for (double d: q) {
+        //     if (norm == Normalizer.EUCLIDEAN)
+        //         val += Math.pow(d, 2);
+        //     else if (norm == Normalizer.MANHATTAN)
+        //         val += d;
+        // }
+
+        // for (int i = 0; i < q.size(); i++) {
+        //     double denominator = 1.0;
+        //     if (norm == Normalizer.EUCLIDEAN)
+        //         denominator = Math.sqrt(val);
+        //     else if (norm == Normalizer.MANHATTAN)
+        //         denominator = val;
+        //     q.set(i, q.get(i) / denominator);
+        // }
+
+
+        ArrayList<TokenIndexData> postingsLists = getPostingsLists(query);
+        HashMap<Integer, PostingsEntry> scores = new HashMap<>();
+        HashMap<Integer, Double> denom = new HashMap<>();
+
+        /** <docID, index> */
+        int i = 0;
+        for (TokenIndexData pt: postingsLists) {
+            PostingsList pl = pt.postingsList;
+            // int termID = Index.tokenIndex.get(postingsLists.get(0).token);
+            for (PostingsEntry pe: pl) {
+                // double tf = 1.0 + Math.log10(pe.getOccurences());
+                double tfidf = tfidf(pe, pl);
+
+                double score = q.get(i) * tfidf;
+
+                if (!scores.containsKey(pe.docID)) {
+                    scores.put(pe.docID, new PostingsEntry(pe.docID, score));
+                }
+                else {
+                    scores.get(pe.docID).score += score;
+                }
+            }
+            i++;
+        }
+
+        PostingsList results = new PostingsList();
+
+        /** Normalize score */
+        for (int docID: scores.keySet()) {
+            PostingsEntry pe = scores.get(docID);
+
+            pe.score /= Index.docLengths.get(pe.docID);
+
+            results.add(pe);
+        }
+        
+        Collections.sort(results);
+
+        return results;
+    }
+
+    private double tfidf(PostingsEntry pe, PostingsList pl) {
+        double tf = pe.getOccurences();
+        double idf = Math.log(Index.docNames.size() / pl.size());
+
+        double tfidf = tf * idf;
+        return tfidf;
+    }
+
+    private PostingsList getPagerankQuery(Query query) {
+        ArrayList<TokenIndexData> postingsLists = getPostingsLists(query);
+
+        HashSet<Integer> savedDocIDs = new HashSet<>();
+
+        PostingsList results = new PostingsList();
+
+        for (TokenIndexData pt: postingsLists) {
+            PostingsList pl = pt.postingsList;
+            for (PostingsEntry pe: pl) {
+                if (!savedDocIDs.contains(pe.docID)) {
+                    String docName = Index.docNames.get(pe.docID);
+                    String strippedDocName = docName.substring(docName.indexOf("/")+1);
+                    try {
+                        pe.score = Index.pageranks.get(strippedDocName);
+                    } catch (NullPointerException e) {
+                        System.err.println(strippedDocName);
+                    } 
+                    
+                    results.add(pe);
+
+                    savedDocIDs.add(pe.docID);
+                }
+            }
+        }
+
+        Collections.sort(results);
+
+        /** Normalize scores */
+        double norm = 0.0;
+        for (PostingsEntry pe: results) {
+            norm += pe.score;
+        }
+
+        for (PostingsEntry pe: results) {
+            pe.score /= norm;
+        }
+
+        return results;
+    }
+
+    private PostingsList getCombinedQuery(Query query) {
+        PostingsList tfidf = getTfidfQuery(query);
+
+        ArrayList<Double> pagerankScores = new ArrayList<>();
+        pagerankScores.ensureCapacity(tfidf.size());
+
+        double tfidfNorm = 0.0;
+        double pagerankNorm = 0.0;
+        for (PostingsEntry pe: tfidf) {
+            tfidfNorm += pe.score;
+
+            String docName = Index.docNames.get(pe.docID);
+            String strippedDocName = docName.substring(docName.indexOf("/")+1);
+            double pagerankScore = Index.pageranks.get(strippedDocName);
+            pagerankScores.add(pagerankScore);
+            pagerankNorm += pagerankScore;
+        }
+
+        int i = 0;
+        for (PostingsEntry pe: tfidf) {
+            pe.score = RANK_WEIGHT * pe.score/tfidfNorm + (1.0-RANK_WEIGHT) * pagerankScores.get(i) /pagerankNorm;
+            i++;
+        }
+
+        Collections.sort(tfidf);
+
+        return tfidf;
+    }
+
+    private PostingsList getHITSQuery(Query query) {
+        ArrayList<TokenIndexData> postingsLists = getPostingsLists(query);
+
+        HashSet<Integer> savedDocIDs = new HashSet<>();
+
+        PostingsList results = new PostingsList();
+
+        for (TokenIndexData pt: postingsLists) {
+            PostingsList pl = pt.postingsList;
+            for (PostingsEntry pe: pl) {
+                if (!savedDocIDs.contains(pe.docID)) {
+                    String docName = Index.docNames.get(pe.docID);
+                    results.add(pe);
+
+                    savedDocIDs.add(pe.docID);
+                }
+            }
+        }
+
+        return HITSRanker.rank(results);
     }
 
     /**
@@ -99,7 +296,7 @@ public class Searcher {
      * Finds the postings entries corresponding to the docIDs in `postingsList`.
      * 
      * @param query        The tokens to fetch postings entries for
-     * @param postingsList A list of docIDs to find postingsentries for
+     * @param postingsList A list of docIDs to find postings entries for
      * 
      * @return An ArrayList of PostingsLists with postings entries for each token in
      *         `query` and docID in `postingsList`.
@@ -232,7 +429,7 @@ public class Searcher {
      */
     private PostingsList getIntersectionQuery(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) throws IllegalArgumentException {
 
-        ArrayList<PhraseToken> postingsLists = getPostingsLists(query);
+        ArrayList<TokenIndexData> postingsLists = getPostingsLists(query);
         PostingsList intersection;
 
         if (indexes != null) {
@@ -312,10 +509,10 @@ public class Searcher {
      * 
      * @throws IllegalArgumentException When a token does not exist in the index
      */
-    private ArrayList<PhraseToken> getPostingsLists(Query query) throws IllegalArgumentException {
-        ArrayList<PhraseToken> postingsLists = new ArrayList<>();
+    private ArrayList<TokenIndexData> getPostingsLists(Query query) throws IllegalArgumentException {
+        ArrayList<TokenIndexData> postingsLists = new ArrayList<>();
 
-        // Retrive all postingsLists for query tokens
+        // Retrieve all postingsLists for query tokens
         for (int i = 0; i < query.queryterm.size(); i++) {
             String token = query.queryterm.get(i).term;
 
@@ -323,7 +520,7 @@ public class Searcher {
 
             // If one term does not exist, whole intersection query fails
             if (tokenList != null)
-                postingsLists.add(new PhraseToken(token, i, tokenList));
+                postingsLists.add(new TokenIndexData(token, i, tokenList));
             else
                 throw new IllegalArgumentException("Token " + token + " has no matches");
         }
