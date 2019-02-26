@@ -343,9 +343,12 @@ public class HITSRanker {
         for (PostingsEntry pe : post) {
             String docTitle = getFileName(Index.docNames.get(pe.docID));
 
-            int internalID = titleToId.get(docTitle);
+            try {
+                int internalID = titleToId.get(docTitle);
+                rootSet.add(internalID);
+            } catch (NullPointerException e) {
+            }
 
-            rootSet.add(internalID);
         }
 
         /** Construct baseset */
