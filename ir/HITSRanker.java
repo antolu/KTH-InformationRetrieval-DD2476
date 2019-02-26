@@ -141,6 +141,11 @@ public class HITSRanker {
         hubs = new SparseVector(numberOfDocs);
         authorities = new SparseVector(numberOfDocs);
 
+        for (int i = 0; i < numberOfDocs; i++) {
+            hubs.put(i, 1.0);
+            authorities.put(i, 1.0);
+        }
+
         initiateProbabilityMatrix(numberOfDocs);
     }
 
@@ -278,6 +283,7 @@ public class HITSRanker {
 
             oldHubs = hubs;
             oldAuths = authorities;
+
             hubs = A.multiplyVector(oldAuths);
             authorities = AT.multiplyVector(oldHubs);
 
