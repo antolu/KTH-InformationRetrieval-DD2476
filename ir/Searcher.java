@@ -427,7 +427,7 @@ public class Searcher {
      * @throws IllegalArgumentException When a token in the query does not exist in
      *                                  the index.
      */
-    private PostingsList getIntersectionQuery(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) throws IllegalArgumentException {
+    private PostingsList getIntersectionQuery(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) {
 
         ArrayList<TokenIndexData> postingsLists = getPostingsLists(query);
         PostingsList intersection;
@@ -509,7 +509,7 @@ public class Searcher {
      * 
      * @throws IllegalArgumentException When a token does not exist in the index
      */
-    private ArrayList<TokenIndexData> getPostingsLists(Query query) throws IllegalArgumentException {
+    private ArrayList<TokenIndexData> getPostingsLists(Query query){
         ArrayList<TokenIndexData> postingsLists = new ArrayList<>();
 
         // Retrieve all postingsLists for query tokens
@@ -521,8 +521,8 @@ public class Searcher {
             // If one term does not exist, whole intersection query fails
             if (tokenList != null)
                 postingsLists.add(new TokenIndexData(token, i, tokenList));
-            else
-                throw new IllegalArgumentException("Token " + token + " has no matches");
+            // else
+            //     throw new IllegalArgumentException("Token " + token + " has no matches");
         }
 
         return postingsLists;
