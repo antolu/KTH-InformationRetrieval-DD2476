@@ -200,7 +200,17 @@ public class Query implements Cloneable {
         }
 
         for (i = 0; i < analysedWildcards.size(); i++) {
+            int idx = analysedWildcards.get(i).first;
+            List<String> wildcards = analysedWildcards.get(i).second;
 
+            for (String s: wildcards) {
+                ArrayList<QueryTerm> qt = new ArrayList<QueryTerm>(placeholder);
+                qt.set(idx, new QueryTerm(s, 1.0));
+
+                Query newQuery = new Query();
+                newQuery.queryterm = qt;
+                queries.add(newQuery);
+            }
         }
 
         return queries;
