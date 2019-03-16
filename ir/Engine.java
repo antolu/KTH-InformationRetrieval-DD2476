@@ -24,7 +24,7 @@ public class Engine {
     Indexer indexer;
 
     /** K-gram index */
-    KGramIndex kgIndex;
+    KGramIndex kgIndex = new KGramIndex(3);
 
     /** The searcher used to search the index. */
     Searcher searcher;
