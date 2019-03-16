@@ -37,7 +37,7 @@ public class KGramIndex {
     /**
      * Number of symbols to form a K-gram
      */
-    int K = 3;
+    static private int K;
 
     public KGramIndex(int k) {
         K = k;
@@ -92,7 +92,7 @@ public class KGramIndex {
         return intersection;
     }
 
-    private HashSet<String> getKGrams(String token) {
+    static HashSet<String> getKGrams(String token) {
         HashSet<String> list = new HashSet<>();
 
         if (token.length() < 1) {
@@ -113,6 +113,70 @@ public class KGramIndex {
         return list;
     }
 
+    static Pair<String, String> getWildcardKGrams(String token, HashSet<String> list) {
+
+        if (token.length() < 1) {
+            return new Pair<String, String>("", "");
+        } else if (token.length() == K - 2) {
+            list.add(token);
+            return new Pair<String, String>("", "");
+        }
+
+        String first = token.substring(0, token.indexOf("*"));
+        String second = token.substring(token.indexOf("*") + 1, token.length());
+
+        if (first.length() >= K - 1)
+            list.add("^" + first.substring(0, K - 1));
+
+        for (int i = 0; i < first.length() - (K - 1); i++) {
+            list.add(first.substring(i, i + K));
+        }
+
+        for (int i = 0; i < second.length() - (K - 1); i++) {
+            list.add(second.substring(i, i + K));
+        }
+
+        if (second.length() >= K - 1)
+            list.add(second.substring(second.length() - K + 1, second.length()) + "$");
+
+
+        return new Pair<String, String>(first, second);
+    }
+
+    List<String> getWildcards(String token) {
+        List<String> wildcards = new ArrayList<>();
+
+        HashSet<String> kgrams = new HashSet<>();
+        Pair<String, String> components = getWildcardKGrams(token, kgrams);
+
+        List<KGramPostingsEntry> intersection = null;
+        for (String kgram : kgrams) {
+
+            try {
+                if (intersection == null) {
+                    intersection = getPostings(kgram);
+                } else {
+                    intersection = intersect(intersection, getPostings(kgram));
+                }
+            } catch (NullPointerException e) { // One kgram is missing
+                intersection = null;
+                break;
+            }
+        }
+
+        /* No results for this token */
+        if (intersection == null) return wildcards;
+
+        /* Postfilering, check if token if really matches */
+        for (KGramPostingsEntry match : intersection) {
+            String s = id2term.get(match.tokenID);
+
+            if (s.startsWith(components.first) && s.endsWith(components.second))
+                wildcards.add(s);
+        }
+
+        return wildcards;
+}
 
     /**
      * Inserts all k-grams from a token into the index.
@@ -241,4 +305,14 @@ public class KGramIndex {
             }
         }
     }
+
+static class Pair<K, V> {
+    K first;
+    V second;
+
+    public Pair(K first, V second) {
+        this.first = first;
+        this.second = second;
+    }
+}
 }

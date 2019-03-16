@@ -7,11 +7,9 @@
 
 package ir;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.StringTokenizer;
-import java.nio.charset.*;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 
 /**
@@ -23,7 +21,7 @@ public class Query implements Cloneable {
     /**
      *  Help class to represent one query term, with its associated weight. 
      */
-    class QueryTerm {
+    static class QueryTerm {
         String term;
         double weight;
         QueryTerm( String t, double w ) {
@@ -50,8 +48,7 @@ public class Query implements Cloneable {
      *  feedback from the user). 
      *  (only used in assignment 3).
      */
-    static double BETA = 1 - ALPHA;
-    
+    static final double BETA = 1 - ALPHA;
     
     /**
      *  Creates a new empty Query 
@@ -168,6 +165,45 @@ public class Query implements Cloneable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    boolean containsWildcards() {
+        for (QueryTerm qt: queryterm) {
+            if (qt.term.contains("*")) return true;
+        }
+        return false;
+    }
+
+    List<Query> getWildcardQuery(KGramIndex kgIndex) {
+
+        List<Query> queries = new ArrayList<>();
+
+        ArrayList<QueryTerm> placeholder = new ArrayList<>();
+
+        ArrayList<KGramIndex.Pair<Integer, String>> analyseWildcards = new ArrayList<KGramIndex.Pair<Integer, String>>();
+        ArrayList<KGramIndex.Pair<Integer, List<String>>> analysedWildcards = new ArrayList<>();
+
+        /* Comb through original query */
+        int i = 0;
+        for (QueryTerm qt: queryterm) {
+            if (qt.term.contains("*")) {
+                placeholder.add(new QueryTerm("", 1.0));
+                analyseWildcards.add(new KGramIndex.Pair<Integer, String>(i, qt.term));
+            }
+            else
+                placeholder.add(new QueryTerm(qt.term, qt.weight));
+            i++;
+        }
+
+        for (i = 0; i < analyseWildcards.size(); i++) {
+            analysedWildcards.add(new KGramIndex.Pair<>(analyseWildcards.get(i).first, kgIndex.getWildcards(analyseWildcards.get(i).second)));
+        }
+
+        for (i = 0; i < analysedWildcards.size(); i++) {
+
+        }
+
+        return queries;
     }
 }
 

@@ -7,14 +7,7 @@
 
 package ir;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 /**
  * Searches an index for results of a query.
@@ -54,35 +47,83 @@ public class Searcher {
             return null;
 
         try {
-
-            if (queryType == QueryType.RANKED_QUERY) {
-                if (rankingType == RankingType.TF_IDF) {
-                    return getTfidfQuery(query);
-                } else if (rankingType == RankingType.COMBINATION) {
-                    return getCombinedQuery(query);
-                } else if (rankingType == RankingType.PAGERANK) {
-                    return getPagerankQuery(query);
-                } else if (rankingType == RankingType.HITS) {
-                    return getHITSQuery(query);
+            if (!query.containsWildcards()) {
+                if (queryType == QueryType.RANKED_QUERY) {
+                    if (rankingType == RankingType.TF_IDF) {
+                        return getTfidfQuery(query);
+                    } else if (rankingType == RankingType.COMBINATION) {
+                        return getCombinedQuery(query);
+                    } else if (rankingType == RankingType.PAGERANK) {
+                        return getPagerankQuery(query);
+                    } else if (rankingType == RankingType.HITS) {
+                        return getHITSQuery(query);
+                    }
                 }
-            }
 
-            // Not sufficient number of words for other query
-            if (query.queryterm.size() < 2) {
-                return index.getPostings(query.queryterm.get(0).term);
-            }
+                // Not sufficient number of words for other query
+                if (query.queryterm.size() < 2) {
+                    return index.getPostings(query.queryterm.get(0).term);
+                }
 
-            if (queryType == QueryType.INTERSECTION_QUERY) {
-                return getIntersectionQuery(query, null);
-            } else if (queryType == QueryType.PHRASE_QUERY) {
-                return getPhraseQuery(query);
+                if (queryType == QueryType.INTERSECTION_QUERY) {
+                    return getIntersectionQuery(query, null);
+                } else if (queryType == QueryType.PHRASE_QUERY) {
+                    return getPhraseQuery(query);
+                } else {
+
+                    String token = query.queryterm.get(0).term;
+
+                    PostingsList list = index.getPostings(token);
+
+                    return list;
+                }
+
             } else {
 
-                String token = query.queryterm.get(0).term;
+                List<Query> queries = query.getWildcardQuery(kgIndex);
 
-                PostingsList list = index.getPostings(token);
+                PostingsList res = new PostingsList();
+                if (queryType == QueryType.RANKED_QUERY) {
+                    if (rankingType == RankingType.TF_IDF) {
+                        for (Query q: queries)
+                            res.addAll(getTfidfQuery(q));
+                    } else if (rankingType == RankingType.COMBINATION) {
+                        for (Query q: queries)
+                            res.addAll(getCombinedQuery(q));
+                    } else if (rankingType == RankingType.PAGERANK) {
+                        for (Query q: queries)
+                            res.addAll(getPagerankQuery(q));
+                    } else if (rankingType == RankingType.HITS) {
+                        for (Query q: queries)
+                            res.addAll(getHITSQuery(q));
+                    }
 
-                return list;
+                    return res;
+                }
+
+                // Not sufficient number of words for other query
+                if (query.queryterm.size() < 2) {
+                    for (Query q: queries)
+                        res.addAll(index.getPostings(q.queryterm.get(0).term));
+                    return res;
+                }
+
+                if (queryType == QueryType.INTERSECTION_QUERY) {
+                    for (Query q: queries)
+                        res.addAll(getIntersectionQuery(q, null));
+                } else if (queryType == QueryType.PHRASE_QUERY) {
+                    for (Query q: queries)
+                        res.addAll(getPhraseQuery(q));
+                } else {
+
+                    String token = query.queryterm.get(0).term;
+
+                    PostingsList list = index.getPostings(token);
+
+                    return list;
+                }
+
+                return res;
             }
         } catch (IllegalArgumentException e) {
             System.err.println(e.getMessage());
