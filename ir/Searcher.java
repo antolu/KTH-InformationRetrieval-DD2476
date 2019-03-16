@@ -123,7 +123,18 @@ public class Searcher {
                     return list;
                 }
 
-                return res;
+                /* Remove duplicates */
+                HashSet<Integer> check = new HashSet<>();
+                PostingsList unique = new PostingsList();
+                for (PostingsEntry pe: res) {
+                    if (check.contains(pe.docID)) continue;
+                    else {
+                        check.add(pe.docID);
+                        unique.add(pe);
+                    }
+                }
+
+                return unique;
             }
         } catch (IllegalArgumentException e) {
             System.err.println(e.getMessage());
