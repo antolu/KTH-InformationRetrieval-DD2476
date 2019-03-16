@@ -99,10 +99,10 @@ public class Searcher {
         HashMap<String, Integer> tkns = new HashMap<>();
         for (int i = 0; i < query.queryterm.size(); i++) {
             if (!tkns.containsKey(query.queryterm.get(i).term))
-                q.add(1.0);
+                q.add(query.queryterm.get(i).weight);
             else {
                 int idx = tkns.get(query.queryterm.get(i).term);
-                q.set(idx, q.get(idx) + 1.0);
+                q.set(idx, q.get(idx) + query.queryterm.get(i).weight);
             }
         }
 
