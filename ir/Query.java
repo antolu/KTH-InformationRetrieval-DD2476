@@ -180,7 +180,7 @@ public class Query implements Cloneable {
 
         ArrayList<QueryTerm> placeholder = new ArrayList<>();
 
-        ArrayList<KGramIndex.Pair<Integer, String>> analyseWildcards = new ArrayList<KGramIndex.Pair<Integer, String>>();
+        ArrayList<KGramIndex.Pair<Integer, String>> wildcardIndexes = new ArrayList<KGramIndex.Pair<Integer, String>>();
         ArrayList<KGramIndex.Pair<Integer, List<String>>> analysedWildcards = new ArrayList<>();
 
         /* Comb through original query */
@@ -188,17 +188,19 @@ public class Query implements Cloneable {
         for (QueryTerm qt: queryterm) {
             if (qt.term.contains("*")) {
                 placeholder.add(new QueryTerm("", 1.0));
-                analyseWildcards.add(new KGramIndex.Pair<Integer, String>(i, qt.term));
+                wildcardIndexes.add(new KGramIndex.Pair<Integer, String>(i, qt.term));
             }
             else
                 placeholder.add(new QueryTerm(qt.term, qt.weight));
             i++;
         }
 
-        for (i = 0; i < analyseWildcards.size(); i++) {
-            analysedWildcards.add(new KGramIndex.Pair<>(analyseWildcards.get(i).first, kgIndex.getWildcards(analyseWildcards.get(i).second)));
+        /* Find all wildcards */
+        for (i = 0; i < wildcardIndexes.size(); i++) {
+            analysedWildcards.add(new KGramIndex.Pair<>(wildcardIndexes.get(i).first, kgIndex.getWildcards(wildcardIndexes.get(i).second)));
         }
 
+        /* Actually construct all wildcard queries */
         for (i = 0; i < analysedWildcards.size(); i++) {
             int idx = analysedWildcards.get(i).first;
             List<String> wildcards = analysedWildcards.get(i).second;
