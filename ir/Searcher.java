@@ -84,21 +84,7 @@ public class Searcher {
 
                 PostingsList res = new PostingsList();
                 if (queryType == QueryType.RANKED_QUERY) {
-                    if (rankingType == RankingType.TF_IDF) {
-                        for (Query q: queries)
-                            res.addAll(getTfidfQuery(q));
-                    } else if (rankingType == RankingType.COMBINATION) {
-                        for (Query q: queries)
-                            res.addAll(getCombinedQuery(q));
-                    } else if (rankingType == RankingType.PAGERANK) {
-                        for (Query q: queries)
-                            res.addAll(getPagerankQuery(q));
-                    } else if (rankingType == RankingType.HITS) {
-                        for (Query q: queries)
-                            res.addAll(getHITSQuery(q));
-                    }
-
-                    return res;
+                    return getRankedWildcardQuery(queries, rankingType);
                 }
 
                 // Not sufficient number of words for other query
@@ -123,24 +109,74 @@ public class Searcher {
                     return list;
                 }
 
-                /* Remove duplicates */
-                HashSet<Integer> check = new HashSet<>();
-                PostingsList unique = new PostingsList();
-                for (PostingsEntry pe: res) {
-                    if (check.contains(pe.docID)) continue;
-                    else {
-                        check.add(pe.docID);
-                        unique.add(pe);
-                    }
-                }
-
-                return unique;
+                return removeDuplicates(res);
             }
         } catch (IllegalArgumentException e) {
             System.err.println(e.getMessage());
             return null;
         }
 
+    }
+
+    /**
+     * Removes duplicates from a PostingsList
+     * @param in The PostingsList which to remove duplicates from
+     * @return A PostingsList without duplicates
+     */
+    private PostingsList removeDuplicates(PostingsList in) {
+        HashSet<Integer> check = new HashSet<>();
+
+        PostingsList out = new PostingsList();
+        for (PostingsEntry pe: in) {
+            if (check.contains(pe.docID)) continue;
+            else {
+                check.add(pe.docID);
+                out.add(pe);
+            }
+        }
+
+        return out;
+    }
+
+    private void mergeScores(HashMap<Integer, Integer> check, PostingsList in1, PostingsList in2) {
+        /* <docID, index> */
+
+        for (PostingsEntry pe: in2) {
+            if (check.containsKey(pe.docID)) {
+                in1.get(check.get(pe.docID)).score += pe.score;
+            }
+            else {
+                check.put(pe.docID, in1.size());
+                in1.add(pe);
+            }
+        }
+    }
+
+    private PostingsList getRankedWildcardQuery(List<Query> queries, RankingType rankingType) {
+
+        HashMap<Integer, Integer> check = new HashMap<>();
+        PostingsList out = new PostingsList();
+
+        PostingsList next = null;
+
+        for (Query q: queries) {
+            if (rankingType == RankingType.TF_IDF) {
+                next = getTfidfQuery(q);
+            } else if (rankingType == RankingType.COMBINATION) {
+                next = getCombinedQuery(q);
+            } else if (rankingType == RankingType.PAGERANK) {
+                next = getPagerankQuery(q);
+            } else if (rankingType == RankingType.HITS) {
+                next = getHITSQuery(q);
+            }
+
+            if (next != null)
+                mergeScores(check, out, next);
+        }
+
+        Collections.sort(out);
+
+        return out;
     }
 
     private PostingsList getTfidfQuery(Query query) {
