@@ -7,14 +7,7 @@
 
 package ir;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 /**
  * Searches an index for results of a query.
@@ -54,41 +47,124 @@ public class Searcher {
             return null;
 
         try {
-
-            if (queryType == QueryType.RANKED_QUERY) {
-                if (rankingType == RankingType.TF_IDF) {
-                    return getTfidfQuery(query);
-                } else if (rankingType == RankingType.COMBINATION) {
-                    return getCombinedQuery(query);
-                } else if (rankingType == RankingType.PAGERANK) {
-                    return getPagerankQuery(query);
-                } else if (rankingType == RankingType.HITS) {
-                    return getHITSQuery(query);
+            if (!query.containsWildcards()) {
+                if (queryType == QueryType.RANKED_QUERY) {
+                    if (rankingType == RankingType.TF_IDF) {
+                        return getTfidfQuery(query);
+                    } else if (rankingType == RankingType.COMBINATION) {
+                        return getCombinedQuery(query);
+                    } else if (rankingType == RankingType.PAGERANK) {
+                        return getPagerankQuery(query);
+                    } else if (rankingType == RankingType.HITS) {
+                        return getHITSQuery(query);
+                    }
                 }
-            }
 
-            // Not sufficient number of words for other query
-            if (query.queryterm.size() < 2) {
-                return index.getPostings(query.queryterm.get(0).term);
-            }
+                // Not sufficient number of words for other query
+                if (query.queryterm.size() < 2) {
+                    return index.getPostings(query.queryterm.get(0).term);
+                }
 
-            if (queryType == QueryType.INTERSECTION_QUERY) {
-                return getIntersectionQuery(query, null);
-            } else if (queryType == QueryType.PHRASE_QUERY) {
-                return getPhraseQuery(query);
+                if (queryType == QueryType.INTERSECTION_QUERY) {
+                    return getIntersectionQuery(query, null);
+                } else if (queryType == QueryType.PHRASE_QUERY) {
+                    return getPhraseQuery(query);
+                } else {
+
+                    String token = query.queryterm.get(0).term;
+
+                    PostingsList list = index.getPostings(token);
+
+                    return list;
+                }
+
             } else {
 
-                String token = query.queryterm.get(0).term;
+                List<Query> queries = query.getWildcardQueries(kgIndex);
 
-                PostingsList list = index.getPostings(token);
+                PostingsList res = new PostingsList();
+                if (queryType == QueryType.RANKED_QUERY) {
+                    return getRankedWildcardQuery(query.getWildcards(kgIndex), rankingType);
+                }
 
-                return list;
+                // Not sufficient number of words for other query
+                if (query.queryterm.size() < 2) {
+                    for (Query q: queries)
+                        res.addAll(index.getPostings(q.queryterm.get(0).term));
+                    return res;
+                }
+
+                if (queryType == QueryType.INTERSECTION_QUERY) {
+                    for (Query q: queries)
+                        res.addAll(getIntersectionQuery(q, null));
+                } else if (queryType == QueryType.PHRASE_QUERY) {
+                    for (Query q: queries)
+                        res.addAll(getPhraseQuery(q));
+                } else {
+
+                    String token = query.queryterm.get(0).term;
+
+                    PostingsList list = index.getPostings(token);
+
+                    return list;
+                }
+
+                return removeDuplicates(res);
             }
         } catch (IllegalArgumentException e) {
             System.err.println(e.getMessage());
             return null;
         }
 
+    }
+
+    /**
+     * Removes duplicates from a PostingsList
+     * @param in The PostingsList which to remove duplicates from
+     * @return A PostingsList without duplicates
+     */
+    private PostingsList removeDuplicates(PostingsList in) {
+        HashSet<Integer> check = new HashSet<>();
+
+        PostingsList out = new PostingsList();
+        for (PostingsEntry pe: in) {
+            if (check.contains(pe.docID)) continue;
+            else {
+                check.add(pe.docID);
+                out.add(pe);
+            }
+        }
+
+        return out;
+    }
+
+    private void mergeScores(HashMap<Integer, Integer> check, PostingsList in1, PostingsList in2) {
+        /* <docID, index> */
+
+        for (PostingsEntry pe: in2) {
+            if (check.containsKey(pe.docID)) {
+                in1.get(check.get(pe.docID)).score += pe.score;
+            }
+            else {
+                check.put(pe.docID, in1.size());
+                in1.add(pe);
+            }
+        }
+    }
+
+    private PostingsList getRankedWildcardQuery(Query q, RankingType rankingType) {
+
+        if (rankingType == RankingType.TF_IDF) {
+            return getTfidfQuery(q);
+        } else if (rankingType == RankingType.COMBINATION) {
+            return getCombinedQuery(q);
+        } else if (rankingType == RankingType.PAGERANK) {
+            return getPagerankQuery(q);
+        } else if (rankingType == RankingType.HITS) {
+            return getHITSQuery(q);
+        } else {
+            return null;
+        }
     }
 
     private PostingsList getTfidfQuery(Query query) {
@@ -278,18 +354,21 @@ public class Searcher {
         for (int i = 0; i < query.queryterm.size(); i++) {
             indexes.add(new LinkedHashMap<Integer, Integer>());
         }
+        try {
+            getIntersectionQuery(query, indexes);
 
-        getIntersectionQuery(query, indexes);
+            ArrayList<PostingsList> orderPostingsList = getLists(query, indexes);
 
-        ArrayList<PostingsList> orderPostingsList = getLists(query, indexes);
+            Collections.reverse(orderPostingsList);
 
-        Collections.reverse(orderPostingsList);
+            PostingsList p1 = orderPostingsList.get(orderPostingsList.size() - 1);
 
-        PostingsList p1 = orderPostingsList.get(orderPostingsList.size() - 1);
+            orderPostingsList.remove(orderPostingsList.size() - 1);
 
-        orderPostingsList.remove(orderPostingsList.size() - 1);
-
-        return getRecursivePhrase(p1, orderPostingsList);
+            return getRecursivePhrase(p1, orderPostingsList);
+        } catch (IllegalArgumentException e) {
+            return new PostingsList();
+        }
     }
 
     /**
@@ -301,7 +380,8 @@ public class Searcher {
      * @return An ArrayList of PostingsLists with postings entries for each token in
      *         `query` and docID in `postingsList`.
      */
-    private ArrayList<PostingsList> getLists(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) {
+    @SuppressWarnings("MagicConstant")
+    private ArrayList<PostingsList> getLists(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) throws IllegalArgumentException {
 
         /** Allocate return variable */
         ArrayList<PostingsList> ret = new ArrayList<>();
@@ -314,6 +394,9 @@ public class Searcher {
             LinkedHashMap<Integer, Integer> tokenIndexes = indexes.get(i);
             PostingsList list = ret.get(i);
             PostingsList fullList = index.getPostings(query.queryterm.get(i).term);
+
+            if (tokenIndexes.isEmpty())
+                throw new IllegalArgumentException("Token" + query.queryterm.get(i).term + " does not match a phrase query.");
 
             for (Map.Entry<Integer, Integer> entry : tokenIndexes.entrySet()) {
                 list.add(fullList.get(entry.getValue()));
@@ -427,7 +510,7 @@ public class Searcher {
      * @throws IllegalArgumentException When a token in the query does not exist in
      *                                  the index.
      */
-    private PostingsList getIntersectionQuery(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) {
+    private PostingsList getIntersectionQuery(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) throws IllegalArgumentException {
 
         ArrayList<TokenIndexData> postingsLists = getPostingsLists(query);
         PostingsList intersection;
@@ -509,7 +592,7 @@ public class Searcher {
      * 
      * @throws IllegalArgumentException When a token does not exist in the index
      */
-    private ArrayList<TokenIndexData> getPostingsLists(Query query){
+    private ArrayList<TokenIndexData> getPostingsLists(Query query) throws IllegalArgumentException {
         ArrayList<TokenIndexData> postingsLists = new ArrayList<>();
 
         // Retrieve all postingsLists for query tokens
@@ -521,8 +604,8 @@ public class Searcher {
             // If one term does not exist, whole intersection query fails
             if (tokenList != null)
                 postingsLists.add(new TokenIndexData(token, i, tokenList));
-            // else
-            //     throw new IllegalArgumentException("Token " + token + " has no matches");
+             else
+                 throw new IllegalArgumentException("Token " + token + " has no matches");
         }
 
         return postingsLists;

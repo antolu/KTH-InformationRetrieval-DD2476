@@ -16,15 +16,15 @@ import java.io.File;
 public class Engine {
 
     /** The inverted index. */
-    // Index index = new HashedIndex();
+     Index index = new HashedIndex();
     // Index index = new PersistentHashedIndex();
-    Index index = new PersistentScalableHashedIndex();
+//    Index index = new PersistentScalableHashedIndex();
 
     /** The indexer creating the search index. */
     Indexer indexer;
 
     /** K-gram index */
-    KGramIndex kgIndex = new KGramIndex(3);
+    KGramIndex kgIndex = new KGramIndex(2);
 
     /** The searcher used to search the index. */
     Searcher searcher;

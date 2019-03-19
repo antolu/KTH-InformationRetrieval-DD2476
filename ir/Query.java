@@ -7,11 +7,9 @@
 
 package ir;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.StringTokenizer;
-import java.nio.charset.*;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 
 /**
@@ -23,7 +21,7 @@ public class Query implements Cloneable {
     /**
      *  Help class to represent one query term, with its associated weight. 
      */
-    class QueryTerm {
+    static class QueryTerm {
         String term;
         double weight;
         QueryTerm( String t, double w ) {
@@ -50,8 +48,7 @@ public class Query implements Cloneable {
      *  feedback from the user). 
      *  (only used in assignment 3).
      */
-    static double BETA = 1 - ALPHA;
-    
+    static final double BETA = 1 - ALPHA;
     
     /**
      *  Creates a new empty Query 
@@ -168,6 +165,96 @@ public class Query implements Cloneable {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    boolean containsWildcards() {
+        for (QueryTerm qt: queryterm) {
+            if (qt.term.contains("*")) return true;
+        }
+        return false;
+    }
+
+    List<Query> getWildcardQueries(KGramIndex kgIndex) {
+
+
+        ArrayList<QueryTerm> placeholder = new ArrayList<>();
+
+        ArrayList<KGramIndex.Pair<Integer, String>> wildcardIndexes = new ArrayList<KGramIndex.Pair<Integer, String>>();
+        ArrayList<KGramIndex.Pair<Integer, List<String>>> analysedWildcards = new ArrayList<>();
+
+        /* Comb through original query */
+        int i = 0;
+        for (QueryTerm qt: queryterm) {
+            if (qt.term.contains("*")) {
+                placeholder.add(new QueryTerm("", 1.0));
+                wildcardIndexes.add(new KGramIndex.Pair<Integer, String>(i, qt.term));
+            }
+            else
+                placeholder.add(new QueryTerm(qt.term, qt.weight));
+            i++;
+        }
+
+        /* Find all wildcards */
+        for (i = 0; i < wildcardIndexes.size(); i++) {
+            analysedWildcards.add(new KGramIndex.Pair<>(wildcardIndexes.get(i).first, kgIndex.getWildcards(wildcardIndexes.get(i).second)));
+        }
+
+        List<Query> queries = new ArrayList<>();
+
+        Query q = new Query();
+        q.queryterm = placeholder;
+        queries.add(q);
+
+        /* Actually construct all wildcard queries */
+        for (i = 0; i < analysedWildcards.size(); i++) {
+            int idx = analysedWildcards.get(i).first;
+            List<String> wildcards = analysedWildcards.get(i).second;
+            List<Query> newQueries = new ArrayList<>();
+            ((ArrayList<Query>) newQueries).ensureCapacity(queries.size() * wildcards.size());
+
+            for (Query query: queries) {
+                for (String s: wildcards) {
+                    ArrayList<QueryTerm> qt = new ArrayList<QueryTerm>(query.queryterm);
+                    qt.set(idx, new QueryTerm(s, 1.0));
+
+                    Query newQuery = new Query();
+                    newQuery.queryterm = qt;
+                    newQueries.add(newQuery);
+                }
+            }
+            queries = newQueries;
+        }
+
+        return queries;
+    }
+
+    Query getWildcards(KGramIndex kgIndex) {
+
+        Query q = new Query();
+
+        ArrayList<String> wildcardsToSearch = new ArrayList<>();
+
+        /* Comb through original query */
+        int i = 0;
+        for (QueryTerm qt: queryterm) {
+            if (qt.term.contains("*")) {
+                wildcardsToSearch.add(qt.term);
+            }
+            else
+                q.queryterm.add(new QueryTerm(qt.term, 1.0));
+            i++;
+        }
+
+        /* Find all wildcards and append them to the query */
+        for (i = 0; i < wildcardsToSearch.size(); i++) {
+            List<String> wildcards = kgIndex.getWildcards(wildcardsToSearch.get(i));
+
+            for (String s: wildcards) {
+                q.queryterm.add(new QueryTerm(s, 1.0));
+            }
+        }
+
+        return q;
     }
 }
 
