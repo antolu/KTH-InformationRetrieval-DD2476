@@ -366,18 +366,21 @@ public class Searcher {
         for (int i = 0; i < query.queryterm.size(); i++) {
             indexes.add(new LinkedHashMap<Integer, Integer>());
         }
+        try {
+            getIntersectionQuery(query, indexes);
 
-        getIntersectionQuery(query, indexes);
+            ArrayList<PostingsList> orderPostingsList = getLists(query, indexes);
 
-        ArrayList<PostingsList> orderPostingsList = getLists(query, indexes);
+            Collections.reverse(orderPostingsList);
 
-        Collections.reverse(orderPostingsList);
+            PostingsList p1 = orderPostingsList.get(orderPostingsList.size() - 1);
 
-        PostingsList p1 = orderPostingsList.get(orderPostingsList.size() - 1);
+            orderPostingsList.remove(orderPostingsList.size() - 1);
 
-        orderPostingsList.remove(orderPostingsList.size() - 1);
-
-        return getRecursivePhrase(p1, orderPostingsList);
+            return getRecursivePhrase(p1, orderPostingsList);
+        } catch (IllegalArgumentException e) {
+            return new PostingsList();
+        }
     }
 
     /**
@@ -389,7 +392,7 @@ public class Searcher {
      * @return An ArrayList of PostingsLists with postings entries for each token in
      *         `query` and docID in `postingsList`.
      */
-    private ArrayList<PostingsList> getLists(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) {
+    private ArrayList<PostingsList> getLists(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) throws IllegalArgumentException {
 
         /** Allocate return variable */
         ArrayList<PostingsList> ret = new ArrayList<>();
@@ -402,6 +405,9 @@ public class Searcher {
             LinkedHashMap<Integer, Integer> tokenIndexes = indexes.get(i);
             PostingsList list = ret.get(i);
             PostingsList fullList = index.getPostings(query.queryterm.get(i).term);
+
+            if (tokenIndexes.isEmpty())
+                throw new IllegalArgumentException("Token" + query.queryterm.get(i).term + " does not match a phrase query.");
 
             for (Map.Entry<Integer, Integer> entry : tokenIndexes.entrySet()) {
                 list.add(fullList.get(entry.getValue()));
@@ -515,7 +521,7 @@ public class Searcher {
      * @throws IllegalArgumentException When a token in the query does not exist in
      *                                  the index.
      */
-    private PostingsList getIntersectionQuery(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) {
+    private PostingsList getIntersectionQuery(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) throws IllegalArgumentException {
 
         ArrayList<TokenIndexData> postingsLists = getPostingsLists(query);
         PostingsList intersection;
@@ -597,7 +603,7 @@ public class Searcher {
      * 
      * @throws IllegalArgumentException When a token does not exist in the index
      */
-    private ArrayList<TokenIndexData> getPostingsLists(Query query){
+    private ArrayList<TokenIndexData> getPostingsLists(Query query) throws IllegalArgumentException {
         ArrayList<TokenIndexData> postingsLists = new ArrayList<>();
 
         // Retrieve all postingsLists for query tokens
@@ -609,8 +615,8 @@ public class Searcher {
             // If one term does not exist, whole intersection query fails
             if (tokenList != null)
                 postingsLists.add(new TokenIndexData(token, i, tokenList));
-            // else
-            //     throw new IllegalArgumentException("Token " + token + " has no matches");
+             else
+                 throw new IllegalArgumentException("Token " + token + " has no matches");
         }
 
         return postingsLists;
