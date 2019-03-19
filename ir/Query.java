@@ -174,7 +174,7 @@ public class Query implements Cloneable {
         return false;
     }
 
-    List<Query> getWildcardQuery(KGramIndex kgIndex) {
+    List<Query> getWildcardQueries(KGramIndex kgIndex) {
 
         List<Query> queries = new ArrayList<>();
 
@@ -216,6 +216,35 @@ public class Query implements Cloneable {
         }
 
         return queries;
+    }
+
+    Query getWildcards(KGramIndex kgIndex) {
+
+        Query q = new Query();
+
+        ArrayList<String> wildcardsToSearch = new ArrayList<>();
+
+        /* Comb through original query */
+        int i = 0;
+        for (QueryTerm qt: queryterm) {
+            if (qt.term.contains("*")) {
+                wildcardsToSearch.add(qt.term);
+            }
+            else
+                q.queryterm.add(new QueryTerm(qt.term, 1.0));
+            i++;
+        }
+
+        /* Find all wildcards and append them to the query */
+        for (i = 0; i < wildcardsToSearch.size(); i++) {
+            List<String> wildcards = kgIndex.getWildcards(wildcardsToSearch.get(i));
+
+            for (String s: wildcards) {
+                q.queryterm.add(new QueryTerm(s, 1.0));
+            }
+        }
+
+        return q;
     }
 }
 

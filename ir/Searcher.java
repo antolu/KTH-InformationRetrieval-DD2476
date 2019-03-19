@@ -80,11 +80,11 @@ public class Searcher {
 
             } else {
 
-                List<Query> queries = query.getWildcardQuery(kgIndex);
+                List<Query> queries = query.getWildcardQueries(kgIndex);
 
                 PostingsList res = new PostingsList();
                 if (queryType == QueryType.RANKED_QUERY) {
-                    return getRankedWildcardQuery(queries, rankingType);
+                    return getRankedWildcardQuery(query.getWildcards(kgIndex), rankingType);
                 }
 
                 // Not sufficient number of words for other query
@@ -152,31 +152,19 @@ public class Searcher {
         }
     }
 
-    private PostingsList getRankedWildcardQuery(List<Query> queries, RankingType rankingType) {
+    private PostingsList getRankedWildcardQuery(Query q, RankingType rankingType) {
 
-        HashMap<Integer, Integer> check = new HashMap<>();
-        PostingsList out = new PostingsList();
-
-        PostingsList next = null;
-
-        for (Query q: queries) {
-            if (rankingType == RankingType.TF_IDF) {
-                next = getTfidfQuery(q);
-            } else if (rankingType == RankingType.COMBINATION) {
-                next = getCombinedQuery(q);
-            } else if (rankingType == RankingType.PAGERANK) {
-                next = getPagerankQuery(q);
-            } else if (rankingType == RankingType.HITS) {
-                next = getHITSQuery(q);
-            }
-
-            if (next != null)
-                mergeScores(check, out, next);
+        if (rankingType == RankingType.TF_IDF) {
+            return getTfidfQuery(q);
+        } else if (rankingType == RankingType.COMBINATION) {
+            return getCombinedQuery(q);
+        } else if (rankingType == RankingType.PAGERANK) {
+            return getPagerankQuery(q);
+        } else if (rankingType == RankingType.HITS) {
+            return getHITSQuery(q);
+        } else {
+            return null;
         }
-
-        Collections.sort(out);
-
-        return out;
     }
 
     private PostingsList getTfidfQuery(Query query) {
@@ -392,6 +380,7 @@ public class Searcher {
      * @return An ArrayList of PostingsLists with postings entries for each token in
      *         `query` and docID in `postingsList`.
      */
+    @SuppressWarnings("MagicConstant")
     private ArrayList<PostingsList> getLists(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) throws IllegalArgumentException {
 
         /** Allocate return variable */
