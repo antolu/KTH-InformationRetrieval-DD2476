@@ -176,7 +176,6 @@ public class Query implements Cloneable {
 
     List<Query> getWildcardQueries(KGramIndex kgIndex) {
 
-        List<Query> queries = new ArrayList<>();
 
         ArrayList<QueryTerm> placeholder = new ArrayList<>();
 
@@ -200,19 +199,30 @@ public class Query implements Cloneable {
             analysedWildcards.add(new KGramIndex.Pair<>(wildcardIndexes.get(i).first, kgIndex.getWildcards(wildcardIndexes.get(i).second)));
         }
 
+        List<Query> queries = new ArrayList<>();
+
+        Query q = new Query();
+        q.queryterm = placeholder;
+        queries.add(q);
+
         /* Actually construct all wildcard queries */
         for (i = 0; i < analysedWildcards.size(); i++) {
             int idx = analysedWildcards.get(i).first;
             List<String> wildcards = analysedWildcards.get(i).second;
+            List<Query> newQueries = new ArrayList<>();
+            ((ArrayList<Query>) newQueries).ensureCapacity(queries.size() * wildcards.size());
 
-            for (String s: wildcards) {
-                ArrayList<QueryTerm> qt = new ArrayList<QueryTerm>(placeholder);
-                qt.set(idx, new QueryTerm(s, 1.0));
+            for (Query query: queries) {
+                for (String s: wildcards) {
+                    ArrayList<QueryTerm> qt = new ArrayList<QueryTerm>(query.queryterm);
+                    qt.set(idx, new QueryTerm(s, 1.0));
 
-                Query newQuery = new Query();
-                newQuery.queryterm = qt;
-                queries.add(newQuery);
+                    Query newQuery = new Query();
+                    newQuery.queryterm = qt;
+                    newQueries.add(newQuery);
+                }
             }
+            queries = newQueries;
         }
 
         return queries;
