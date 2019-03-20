@@ -29,6 +29,8 @@ public class KGramIndex {
      */
     HashMap<String, List<KGramPostingsEntry>> index = new HashMap<String, List<KGramPostingsEntry>>();
 
+    HashMap<String, Integer> numberOfKgrams = new HashMap<>();
+
     /**
      * The ID of the last processed term
      */
@@ -37,7 +39,7 @@ public class KGramIndex {
     /**
      * Number of symbols to form a K-gram
      */
-    static private int K;
+    static int K;
 
     public KGramIndex(int k) {
         K = k;
@@ -111,6 +113,32 @@ public class KGramIndex {
         list.add(token.substring(token.length() - K + 1, token.length()) + "$");
 
         return list;
+    }
+
+    /**
+     * Gets all the words that have at least one of the kgrams in the input
+     * @param kgrams The kgrams to base the search on
+     * @return A HashSet containing the words that contain any of the kgrams
+     */
+    HashMap<String, MutableInteger> getTokensFromKgrams(Set<String> kgrams) {
+
+        HashMap<String, MutableInteger> tokens = new HashMap<>();
+
+        for (String kgram: kgrams) {
+            List<KGramPostingsEntry> list = index.get(kgram);
+            if (list == null) continue;
+
+            for (KGramPostingsEntry pe: list) {
+                String tkn = id2term.get(pe.tokenID);
+
+                if (tokens.containsKey(tkn))
+                    tokens.get(tkn).i++;
+                else
+                    tokens.put(tkn, new MutableInteger(1));
+            }
+        }
+
+        return tokens;
     }
 
     static Pair<String, String> getWildcardKGrams(String token, HashSet<String> list) {
@@ -201,6 +229,8 @@ public class KGramIndex {
                 index.put(kgram, list);
             }
         }
+
+        numberOfKgrams.put(token, kgrams.size());
     }
 
     /**
@@ -306,13 +336,21 @@ public class KGramIndex {
         }
     }
 
-static class Pair<K, V> {
-    K first;
-    V second;
+    static class Pair<K, V> {
+        K first;
+        V second;
 
-    public Pair(K first, V second) {
-        this.first = first;
-        this.second = second;
+        public Pair(K first, V second) {
+            this.first = first;
+            this.second = second;
+        }
     }
-}
+
+    static class MutableInteger {
+        int i;
+
+        public MutableInteger(int i) {
+            this.i = i;
+        }
+    }
 }
