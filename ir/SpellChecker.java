@@ -87,21 +87,36 @@ public class SpellChecker {
         }
         for (int i = 1; i < s1.length(); i++) {
             for (int j = 1; j < s2.length(); j++) {
-                int n = m[i-1][j-1];
-                if (s1.charAt(i) != s2.charAt(j)) n += 2;
+                int substitute = m[i-1][j-1];
+                if (s1.charAt(i) != s2.charAt(j))
+                    substitute += 2;
+                int insert = m[i-1][j] + 1;
+                int delete = m[i][j-1] + 1;
 
-                n = Math.min(n, m[i-1][j] + 1);
-                n = Math.min(n, m[i][j-1] + 1);
-                m[i][j] = n;
+                int val = Math.min(substitute, insert);
+                val = Math.min(val, delete);
+                m[i][j] = val;
             }
         }
 
-        return m[s1.length() - 1][s2.length() - 1];
+        return m[m.length - 1][m[0].length - 1];
     }
 
-    private int getNoKgrams(String s, int K) {
-        return (int) Math.ceil((s.length() + 1.0) / K);
+    private static int distance(String s1, String s2, int i, int j) {
+        if (j == s2.length()) {
+            return s1.length() - i;
+        }
+        if (i == s1.length()) {
+            return s2.length() - j;
+        }
+        if (s1.charAt(i) == s2.charAt(j))
+            return distance(s1, s2, i + 1, j + 1);
+        int rep = distance(s1, s2, i + 1, j + 1) + 2;
+        int del = distance(s1, s2, i, j + 1) + 1;
+        int ins = distance(s1, s2, i + 1, j) + 1;
+        return Math.min(del, Math.min(ins, rep));
     }
+
 
     /**
      *  Checks spelling of all terms in <code>query</code> and returns up to
@@ -127,7 +142,8 @@ public class SpellChecker {
 
             ArrayList<KGramStat> results = new ArrayList<>();
             for (KGramStat kstat: passJaccard) {
-                int editDistance = editDistance(qt.term, kstat.token);
+                // int editDistance = editDistance(qt.term, kstat.token);
+                int editDistance = distance(qt.term, kstat.token, 0, 0);
                 if (editDistance <= MAX_EDIT_DISTANCE) {
                     results.add(kstat);
                 }
