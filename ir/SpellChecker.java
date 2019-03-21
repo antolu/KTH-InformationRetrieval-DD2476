@@ -119,8 +119,8 @@ public class SpellChecker {
             List<KGramStat> passJaccard = new ArrayList<>();
 
             for (String kgramToken: words.keySet()) {
-                double jScore = jaccard(getNoKgrams(qt.term, kgIndex.K), kgIndex.numberOfKgrams.get(kgramToken), words.get(kgramToken).i);
-                if (jScore > JACCARD_THRESHOLD) {
+                double jScore = jaccard(kgrams.size(), kgIndex.numberOfKgrams.get(kgramToken), words.get(kgramToken).i);
+                if (jScore >= JACCARD_THRESHOLD) {
                     passJaccard.add(new KGramStat(kgramToken, jScore));
                 }
             }
@@ -129,20 +129,45 @@ public class SpellChecker {
             for (KGramStat kstat: passJaccard) {
                 int editDistance = editDistance(qt.term, kstat.token);
                 if (editDistance <= MAX_EDIT_DISTANCE) {
-                    kstat.score += editDistance / 2.0;
                     results.add(kstat);
                 }
             }
 
+            /* Normalize */
             Collections.sort(results, Collections.reverseOrder());
+            double denom = 0.0;
+            for (KGramStat kstat: results){
+                denom += kstat.score;
+            }
+            for (KGramStat kstat: results){
+                kstat.score /= denom;
+            }
+
+            /* Get number of documents and normalize combine scores */
+            denom = 0.0;
+            int i = 0;
+            double[] noDocsScores = new double[results.size()];
+            for (KGramStat kstat: results){
+                double score = index.getPostings(kstat.token).size();
+                noDocsScores[i++] = score;
+                denom += score;
+            }
+
+            i = 0;
+            for (KGramStat kstat: results) {
+                kstat.score += noDocsScores[i++] / denom;
+            }
+
             unsortedResults.add(results);
         }
 
         List<KGramStat> sortedResults = mergeCorrections(unsortedResults, limit);
 
-        finalResults = new String[limit];
+        int resultSize = Math.min(sortedResults.size(), limit);
 
-        for (int i = 0; i < limit || i < sortedResults.size(); i++) {
+        finalResults = new String[resultSize];
+
+        for (int i = 0; i < resultSize; i++) {
             finalResults[i] = sortedResults.get(i).token;
         }
 
@@ -156,9 +181,22 @@ public class SpellChecker {
      */
     private List<KGramStat> mergeCorrections(List<List<KGramStat>> qCorrections, int limit) {
         List<KGramStat> results = new ArrayList<>();
+        List<KGramStat> newResults;
 
         for (List<KGramStat> tknList: qCorrections) {
-            results.addAll(tknList);
+            newResults = new ArrayList<>();
+
+            if (!results.isEmpty())
+                for (KGramStat kstat: tknList) {
+                    for (KGramStat kstatRes: results) {
+                        KGramStat combined = new KGramStat(kstat.token + " " + kstatRes.token, kstat.score +  kstatRes.score);
+                        newResults.add(combined);
+                    }
+                }
+            else {
+                newResults.addAll(tknList);
+            }
+            results = newResults;
         }
 
         Collections.sort(results, Collections.reverseOrder());
