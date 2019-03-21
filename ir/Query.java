@@ -41,7 +41,7 @@ public class Query implements Cloneable {
      *  Should be between 0 and 1.
      *  (only used in assignment 3).
      */
-    static final double ALPHA = 0.2;
+    static final double ALPHA = 0.1;
 
     /**  
      *  Relevance feedback constant beta (= weight of query terms obtained by
@@ -148,7 +148,7 @@ public class Query implements Cloneable {
 
                 /* Normalize */
                 for (int j = 0; j < di.size(); j++) {
-                    di.get(j).weight *= ( (BETA / relevantIndices.size()) * (1.0 / (engine.index.docLengths.get(docID))) );
+                    di.get(j).weight *= ( (BETA / relevantIndices.size()) * (1.0 / (engine.index.docLengths.get(docID))) * Math.log(Index.docNames.size() * 1.0 / engine.index.getPostings(di.get(j).term).size()) );
                 }
 
                 for (int j = 0; j < di.size(); j++) {
