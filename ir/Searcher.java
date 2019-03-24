@@ -68,7 +68,7 @@ public class Searcher {
                 if (queryType == QueryType.INTERSECTION_QUERY) {
                     return getIntersectionQuery(query, null);
                 } else if (queryType == QueryType.PHRASE_QUERY) {
-                    return getPhraseQuery(query);
+                    return getPhraseQuery(query, new HashSet<>());
                 } else {
 
                     String token = query.queryterm.get(0).term;
@@ -81,6 +81,8 @@ public class Searcher {
             } else {
 
                 List<Query> queries = query.getWildcardQueries(kgIndex);
+
+                HashSet<Integer> matchedDocIDs = new HashSet<>();
 
                 PostingsList res = new PostingsList();
                 if (queryType == QueryType.RANKED_QUERY) {
@@ -99,7 +101,7 @@ public class Searcher {
                         res.addAll(getIntersectionQuery(q, null));
                 } else if (queryType == QueryType.PHRASE_QUERY) {
                     for (Query q: queries)
-                        res.addAll(getPhraseQuery(q));
+                        res.addAll(getPhraseQuery(q, matchedDocIDs));
                 } else {
 
                     String token = query.queryterm.get(0).term;
@@ -170,17 +172,18 @@ public class Searcher {
     private PostingsList getTfidfQuery(Query query) {
 
         /** Build query vector */
-        ArrayList<Double> q = new ArrayList<>();
-
-        HashMap<String, Integer> tkns = new HashMap<>();
-        for (int i = 0; i < query.queryterm.size(); i++) {
-            if (!tkns.containsKey(query.queryterm.get(i).term))
-                q.add(query.queryterm.get(i).weight);
-            else {
-                int idx = tkns.get(query.queryterm.get(i).term);
-                q.set(idx, q.get(idx) + query.queryterm.get(i).weight);
-            }
-        }
+        ArrayList<Query.QueryTerm> q = query.queryterm;
+//        ArrayList<Double> q = new ArrayList<>();
+//
+//        HashMap<String, Integer> tkns = new HashMap<>();
+//        for (int i = 0; i < query.queryterm.size(); i++) {
+//            if (!tkns.containsKey(query.queryterm.get(i).term))
+//                q.add(query.queryterm.get(i).weight);
+//            else {
+//                int idx = tkns.get(query.queryterm.get(i).term);
+//                q.set(idx, q.get(idx) + query.queryterm.get(i).weight);
+//            }
+//        }
 
         /** Normalize q */
         // int val = 0;
@@ -214,7 +217,7 @@ public class Searcher {
                 // double tf = 1.0 + Math.log10(pe.getOccurences());
                 double tfidf = tfidf(pe, pl);
 
-                double score = q.get(i) * tfidf;
+                double score = q.get(i).weight * tfidf;
 
                 if (!scores.containsKey(pe.docID)) {
                     scores.put(pe.docID, new PostingsEntry(pe.docID, score));
@@ -349,7 +352,7 @@ public class Searcher {
      * 
      * @return A PostingsList with the results
      */
-    private PostingsList getPhraseQuery(Query query) {
+    private PostingsList getPhraseQuery(Query query, HashSet<Integer> matchedDocIDs) {
         ArrayList<LinkedHashMap<Integer, Integer>> indexes = new ArrayList<>();
         for (int i = 0; i < query.queryterm.size(); i++) {
             indexes.add(new LinkedHashMap<Integer, Integer>());
@@ -357,7 +360,7 @@ public class Searcher {
         try {
             getIntersectionQuery(query, indexes);
 
-            ArrayList<PostingsList> orderPostingsList = getLists(query, indexes);
+            ArrayList<PostingsList> orderPostingsList = getLists(query, indexes, matchedDocIDs);
 
             Collections.reverse(orderPostingsList);
 
@@ -365,7 +368,12 @@ public class Searcher {
 
             orderPostingsList.remove(orderPostingsList.size() - 1);
 
-            return getRecursivePhrase(p1, orderPostingsList);
+            PostingsList results = getRecursivePhrase(p1, orderPostingsList);
+
+            for (PostingsEntry pe: results)
+                matchedDocIDs.add(pe.docID);
+
+            return results;
         } catch (IllegalArgumentException e) {
             return new PostingsList();
         }
@@ -381,7 +389,7 @@ public class Searcher {
      *         `query` and docID in `postingsList`.
      */
     @SuppressWarnings("MagicConstant")
-    private ArrayList<PostingsList> getLists(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes) throws IllegalArgumentException {
+    private ArrayList<PostingsList> getLists(Query query, ArrayList<LinkedHashMap<Integer, Integer>> indexes, HashSet<Integer> matchedDocIDs) throws IllegalArgumentException {
 
         /** Allocate return variable */
         ArrayList<PostingsList> ret = new ArrayList<>();
@@ -399,7 +407,8 @@ public class Searcher {
                 throw new IllegalArgumentException("Token" + query.queryterm.get(i).term + " does not match a phrase query.");
 
             for (Map.Entry<Integer, Integer> entry : tokenIndexes.entrySet()) {
-                list.add(fullList.get(entry.getValue()));
+                if (!matchedDocIDs.contains(entry.getKey()))
+                    list.add(fullList.get(entry.getValue()));
             }
         }
         return ret;
@@ -419,6 +428,9 @@ public class Searcher {
         /** Increment */
         PostingsList p2 = postingsLists.get(postingsLists.size()-1);
         postingsLists.remove(postingsLists.size()-1);
+
+        if (p1.isEmpty())
+            return new PostingsList();
 
         Iterator<PostingsEntry> itp1 = p1.iterator();
         Iterator<PostingsEntry> itp2 = p2.iterator();
