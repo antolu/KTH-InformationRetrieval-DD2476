@@ -75,48 +75,35 @@ public class SpellChecker {
      *      => delete (cost 1)
      *      => substitute (cost 2)
      */
-    private int editDistance(String s1, String s2) {
+    static int editDistance(String x, String y) {
+        int[][] dp = new int[x.length() + 1][y.length() + 1];
 
-        int[][] m = new int[s1.length()][s2.length()];
-
-        for (int i = 1; i < s1.length(); i++) {
-            m[i][0] = i;
-        }
-        for (int i = 1; i < s2.length(); i++) {
-            m[0][i] = i;
-        }
-        for (int i = 1; i < s1.length(); i++) {
-            for (int j = 1; j < s2.length(); j++) {
-                int substitute = m[i-1][j-1];
-                if (s1.charAt(i) != s2.charAt(j))
-                    substitute += 2;
-                int insert = m[i-1][j] + 1;
-                int delete = m[i][j-1] + 1;
-
-                int val = Math.min(substitute, insert);
-                val = Math.min(val, delete);
-                m[i][j] = val;
+        for (int i = 0; i <= x.length(); i++) {
+            for (int j = 0; j <= y.length(); j++) {
+                if (i == 0) {
+                    dp[i][j] = j;
+                }
+                else if (j == 0) {
+                    dp[i][j] = i;
+                }
+                else {
+                    dp[i][j] = Math.min(dp[i - 1][j - 1]
+                                    + costOfSubstitution(x.charAt(i - 1), y.charAt(j - 1)), Math.min(
+                            dp[i - 1][j] + 1,
+                            dp[i][j - 1] + 1));
+                }
             }
         }
 
-        return m[m.length - 1][m[0].length - 1];
+        return dp[x.length()][y.length()];
     }
 
-    private static int distance(String s1, String s2, int i, int j) {
-        if (j == s2.length()) {
-            return s1.length() - i;
-        }
-        if (i == s1.length()) {
-            return s2.length() - j;
-        }
-        if (s1.charAt(i) == s2.charAt(j))
-            return distance(s1, s2, i + 1, j + 1);
-        int rep = distance(s1, s2, i + 1, j + 1) + 2;
-        int del = distance(s1, s2, i, j + 1) + 1;
-        int ins = distance(s1, s2, i + 1, j) + 1;
-        return Math.min(del, Math.min(ins, rep));
+    private static int costOfSubstitution(char a, char b) {
+        if (a == b)
+            return 0;
+        else
+            return 2;
     }
-
 
     /**
      *  Checks spelling of all terms in <code>query</code> and returns up to
@@ -142,8 +129,7 @@ public class SpellChecker {
 
             ArrayList<KGramStat> results = new ArrayList<>();
             for (KGramStat kstat: passJaccard) {
-                // int editDistance = editDistance(qt.term, kstat.token);
-                int editDistance = distance(qt.term, kstat.token, 0, 0);
+                int editDistance = editDistance(qt.term, kstat.token);
                 if (editDistance <= MAX_EDIT_DISTANCE) {
                     results.add(kstat);
                 }
