@@ -41,14 +41,14 @@ public class Query implements Cloneable {
      *  Should be between 0 and 1.
      *  (only used in assignment 3).
      */
-    static final double ALPHA = 0.1;
+    static final double ALPHA = 1.0;
 
     /**  
      *  Relevance feedback constant beta (= weight of query terms obtained by
      *  feedback from the user). 
      *  (only used in assignment 3).
      */
-    static final double BETA = 1 - ALPHA;
+    static final double BETA = 0.75;
     
     /**
      *  Creates a new empty Query 
@@ -117,17 +117,20 @@ public class Query implements Cloneable {
     public void relevanceFeedback( PostingsList results, boolean[] docIsRelevant, Engine engine ) {
         normalize();
 
+        ArrayList<Integer> relevantIndices = new ArrayList<>();
+        for (int i = 0; i < docIsRelevant.length; i++) {
+            if (docIsRelevant[i]) relevantIndices.add(i);
+        }
+
+        if (relevantIndices.isEmpty()) return;
+
         HashMap<String, Integer> tknToIdx = new HashMap<>();
 
         /* Multiply q0 by alpha */
         for (int i = 0; i < size(); i++) {
             queryterm.get(i).weight *= ALPHA;
+            queryterm.get(i).weight *= Math.log( engine.index.docLengths.size() * 1.0 / engine.index.getPostings(queryterm.get(i).term).size());
             tknToIdx.put(queryterm.get(i).term, i);
-        }
-
-        ArrayList<Integer> relevantIndices = new ArrayList<>();
-        for (int i = 0; i < docIsRelevant.length; i++) {
-            if (docIsRelevant[i]) relevantIndices.add(i);
         }
 
         try {
@@ -140,7 +143,7 @@ public class Query implements Cloneable {
 
                 Reader reader = new InputStreamReader( new FileInputStream(new File(fileName)), StandardCharsets.UTF_8 );
                 Tokenizer tok = new Tokenizer( reader, true, false, true, engine.patterns_file );
-                int offset = 0;
+
                 while ( tok.hasMoreTokens() ) {
                     String token = tok.nextToken();
                     di.add(new QueryTerm(token, 1.0));
@@ -148,7 +151,10 @@ public class Query implements Cloneable {
 
                 /* Normalize */
                 for (int j = 0; j < di.size(); j++) {
-                    di.get(j).weight *= ( (BETA / relevantIndices.size()) * (1.0 / (engine.index.docLengths.get(docID))) * Math.log(Index.docNames.size() * 1.0 / engine.index.getPostings(di.get(j).term).size()) );
+                    // di.get(j).weight *= ( (BETA / relevantIndices.size()) * (1.0 / (engine.index.docLengths.get(docID))) * Math.log(Index.docNames.size() * 1.0 / engine.index.getPostings(di.get(j).term).size()) );
+                    // di.get(j).weight *= ( (BETA / relevantIndices.size()) * Math.log(Index.docNames.size() * 1.0 / engine.index.getPostings(di.get(j).term).size()) * 1.0 / Math.sqrt(engine.index.getPostings(di.get(j).term).size()) );
+                    di.get(j).weight *= ( (BETA / relevantIndices.size()) * Math.log(Index.docNames.size() * 1.0 / engine.index.getPostings(di.get(j).term).size()) );
+                    // di.get(j).weight *= ( (BETA / relevantIndices.size()) * (1.0 / (engine.index.docLengths.get(docID))));
                 }
 
                 for (int j = 0; j < di.size(); j++) {
@@ -162,6 +168,10 @@ public class Query implements Cloneable {
                     }
                 }
             }
+//            for (QueryTerm qt: queryterm) {
+//                System.err.println("Term: " + qt.term + ", weight: " + qt.weight);
+//            }
+            // normalize();
         } catch (IOException e) {
             e.printStackTrace();
         }
