@@ -63,11 +63,12 @@ precdg = prerelevance[0]
 for i in range(1, len(prerelevance)) :
     precdg += prerelevance[i] / m.log2(i+2)
 
-preidcg = (2.0**prerelevance[0] - 1) / m.log2(2)
 prerelevance.sort(reverse=True)
 
+preidcg = (2.0**prerelevance[0] - 1) / m.log2(2)
+
 for i in range(1, len(prerelevance)) :
-    preidcg += 2**prerelevance[i] - 1 / m.log2(i+2)
+    preidcg += (2**prerelevance[i] - 1) / m.log2(i+2)
 
 precdg /= preidcg
 
@@ -133,8 +134,9 @@ postdcg = postrelevance[0]
 for i in range(1, len(postrelevance)) :
     postdcg += postrelevance[i] / m.log2(i+2)
 
-postidcg = (2.0**postrelevance[0] - 1) / m.log2(2)
 postrelevance.sort(reverse=True)
+
+postidcg = (2.0**postrelevance[0] - 1) / m.log2(2)
 
 for i in range(1, len(postrelevance)) :
     postidcg += (2**postrelevance[i] - 1) / m.log2(i+2)
