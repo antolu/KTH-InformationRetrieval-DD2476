@@ -87,10 +87,10 @@ public class SpellChecker {
                     dp[i][j] = i;
                 }
                 else {
-                    dp[i][j] = Math.min(dp[i - 1][j - 1]
+                    dp[i][j] = Math.min(dp[i - 1][j - 1] // substitute
                                     + costOfSubstitution(x.charAt(i - 1), y.charAt(j - 1)), Math.min(
-                            dp[i - 1][j] + 1,
-                            dp[i][j - 1] + 1));
+                            dp[i - 1][j] + 1, // insert
+                            dp[i][j - 1] + 1)); // delete
                 }
             }
         }
@@ -120,6 +120,7 @@ public class SpellChecker {
             HashMap<String, KGramIndex.MutableInteger> words = kgIndex.getTokensFromKgrams(kgrams);
             List<KGramStat> passJaccard = new ArrayList<>();
 
+            /* Check which words pass the jaccard threshold */
             for (String kgramToken: words.keySet()) {
                 double jScore = jaccard(kgrams.size(), kgIndex.numberOfKgrams.get(kgramToken), words.get(kgramToken).i);
                 if (jScore >= JACCARD_THRESHOLD) {
@@ -127,6 +128,7 @@ public class SpellChecker {
                 }
             }
 
+            /* Check which words pass edit distance threshold */
             ArrayList<KGramStat> results = new ArrayList<>();
             for (KGramStat kstat: passJaccard) {
                 int editDistance = editDistance(qt.term, kstat.token);
@@ -163,12 +165,12 @@ public class SpellChecker {
             unsortedResults.add(results);
         }
 
+        /* Only for multiword queries */
         List<KGramStat> sortedResults = mergeCorrections(unsortedResults, limit);
 
+        /* move results to array */
         int resultSize = Math.min(sortedResults.size(), limit);
-
         finalResults = new String[resultSize];
-
         for (int i = 0; i < resultSize; i++) {
             finalResults[i] = sortedResults.get(i).token;
         }
@@ -185,6 +187,7 @@ public class SpellChecker {
         List<KGramStat> results = new ArrayList<>();
         List<KGramStat> newResults;
 
+        /* Merge scores for several tokens and construct all queries */
         for (List<KGramStat> tknList: qCorrections) {
             newResults = new ArrayList<>();
 

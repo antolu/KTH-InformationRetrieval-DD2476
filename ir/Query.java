@@ -117,16 +117,18 @@ public class Query implements Cloneable {
     public void relevanceFeedback( PostingsList results, boolean[] docIsRelevant, Engine engine ) {
         normalize();
 
+        /* Isolate relevant indices */
         ArrayList<Integer> relevantIndices = new ArrayList<>();
         for (int i = 0; i < docIsRelevant.length; i++) {
             if (docIsRelevant[i]) relevantIndices.add(i);
         }
 
+        /* If no documents to get relevance feedback from, do nothing */
         if (relevantIndices.isEmpty()) return;
 
         HashMap<String, Integer> tknToIdx = new HashMap<>();
 
-        /* Multiply q0 by alpha */
+        /* Multiply q0 by alpha and its idf */
         for (int i = 0; i < size(); i++) {
             queryterm.get(i).weight *= ALPHA;
             queryterm.get(i).weight *= Math.log( engine.index.docLengths.size() * 1.0 / engine.index.getPostings(queryterm.get(i).term).size());
@@ -138,6 +140,7 @@ public class Query implements Cloneable {
 
                 ArrayList<QueryTerm> di = new ArrayList<>();
 
+                /* Read each file and get each token */
                 int docID = results.get(i).docID;
                 String fileName = engine.index.docNames.get(docID);
 
@@ -149,7 +152,7 @@ public class Query implements Cloneable {
                     di.add(new QueryTerm(token, 1.0));
                 }
 
-                /* Normalize */
+                /* Calculate score foreach token */
                 for (int j = 0; j < di.size(); j++) {
                     // di.get(j).weight *= ( (BETA / relevantIndices.size()) * (1.0 / (engine.index.docLengths.get(docID))) * Math.log(Index.docNames.size() * 1.0 / engine.index.getPostings(di.get(j).term).size()) );
                     // di.get(j).weight *= ( (BETA / relevantIndices.size()) * Math.log(Index.docNames.size() * 1.0 / engine.index.getPostings(di.get(j).term).size()) * 1.0 / Math.sqrt(engine.index.getPostings(di.get(j).term).size()) );
@@ -157,6 +160,7 @@ public class Query implements Cloneable {
                     // di.get(j).weight *= ( (BETA / relevantIndices.size()) * (1.0 / (engine.index.docLengths.get(docID))));
                 }
 
+                /* Filter tokens and merge scores for same tokens */
                 for (int j = 0; j < di.size(); j++) {
                     QueryTerm qt = di.get(j);
                     if (!tknToIdx.containsKey(qt.term)) {
@@ -177,6 +181,10 @@ public class Query implements Cloneable {
         }
     }
 
+    /**
+     * Determines whether the query contains wildcards
+     * @return a boolean on if the query contains wildcards or not
+     */
     boolean containsWildcards() {
         for (QueryTerm qt: queryterm) {
             if (qt.term.contains("*")) return true;
@@ -184,9 +192,12 @@ public class Query implements Cloneable {
         return false;
     }
 
+    /**
+     * Gets a list of queries that this wildcard query consists of
+     * @param kgIndex The kgram index
+     * @return a list of queries based on the wildcards
+     */
     List<Query> getWildcardQueries(KGramIndex kgIndex) {
-
-
         ArrayList<QueryTerm> placeholder = new ArrayList<>();
 
         ArrayList<KGramIndex.Pair<Integer, String>> wildcardIndexes = new ArrayList<KGramIndex.Pair<Integer, String>>();
@@ -238,6 +249,11 @@ public class Query implements Cloneable {
         return queries;
     }
 
+    /**
+     * Calculates a single query containing all wildcards for this query
+     * @param kgIndex The kgram index
+     * @return A single query whose queryterm contains all wildcard tokens
+     */
     Query getWildcards(KGramIndex kgIndex) {
 
         Query q = new Query();
@@ -245,18 +261,16 @@ public class Query implements Cloneable {
         ArrayList<String> wildcardsToSearch = new ArrayList<>();
 
         /* Comb through original query */
-        int i = 0;
         for (QueryTerm qt: queryterm) {
             if (qt.term.contains("*")) {
                 wildcardsToSearch.add(qt.term);
             }
             else
                 q.queryterm.add(new QueryTerm(qt.term, 1.0));
-            i++;
         }
 
         /* Find all wildcards and append them to the query */
-        for (i = 0; i < wildcardsToSearch.size(); i++) {
+        for (int i = 0; i < wildcardsToSearch.size(); i++) {
             List<String> wildcards = kgIndex.getWildcards(wildcardsToSearch.get(i));
 
             for (String s: wildcards) {
