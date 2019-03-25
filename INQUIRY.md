@@ -297,7 +297,7 @@ Because that's the document that query feedback was executed with. It will intro
 > Compare your result in 1 and 3 above. What do you see?
 
 Before relevance feedback:  0.6484007637819353
-After relevance feedback:  0.618180005824995
+After relevance feedback:  0.7272725425944752
 
 The normalized discount gain decreases after relevance feedback...
 

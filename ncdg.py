@@ -58,10 +58,10 @@ prerelevance.append(0)
 prerelevance.append(0)
 prerelevance.append(0)
 
-precdg = prerelevance[0]
+precdg = (2.0**prerelevance[0] - 1) / m.log2(2)
 
 for i in range(1, len(prerelevance)) :
-    precdg += prerelevance[i] / m.log2(i+2)
+    precdg += (2**prerelevance[i] - 1) / m.log2(i+2)
 
 prerelevance.sort(reverse=True)
 
@@ -129,10 +129,10 @@ postrelevance.append(0)
 postrelevance.append(0)
 postrelevance.append(0)
 
-postdcg = postrelevance[0]
+postdcg = (2.0**postrelevance[0] - 1) / m.log2(2)
 
 for i in range(1, len(postrelevance)) :
-    postdcg += postrelevance[i] / m.log2(i+2)
+    postdcg += (2**postrelevance[i] - 1) / m.log2(i+2)
 
 postrelevance.sort(reverse=True)
 
