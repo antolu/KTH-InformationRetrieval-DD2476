@@ -19,6 +19,17 @@ public class KGramPostingsEntry {
         this.tokenID = other.tokenID;
     }
 
+    @Override
+    public boolean equals(Object other) {
+        if (!(other instanceof KGramPostingsEntry))
+                return false;
+
+        if (tokenID == ((KGramPostingsEntry) other).tokenID)
+            return true;
+        else
+            return false;
+    }
+
     public String toString() {
         return tokenID + "";
     }

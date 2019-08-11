@@ -8,14 +8,16 @@
  */
 package ir;
 
-import java.awt.*;
-import java.awt.event.*;
 import javax.swing.*;
-import javax.swing.text.*;
-import javax.swing.event.*;
-import javax.swing.border.*;
-import java.util.*;
+import javax.swing.border.EmptyBorder;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.*;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.StringTokenizer;
 
 
 /**
@@ -179,6 +181,8 @@ public class SearchGUI extends JFrame {
                         startTime = System.currentTimeMillis();
                         SpellingOptionsDialog dialog = new SpellingOptionsDialog(50);
                         String[] corrections = engine.speller.check(query, 10);
+                        elapsedTime = System.currentTimeMillis() - startTime;
+                        System.err.println("It took " + elapsedTime / 1000.0 + "s to check spelling.");
                         if (corrections != null && corrections.length > 0) {
                             String choice = dialog.show(corrections, corrections[0]);
                             if (choice != null) {
